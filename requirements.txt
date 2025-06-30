@@ -1,0 +1,6 @@
+SpeechRecognition
+pyaudio
+pydub
+mysql
+flask
+jieba

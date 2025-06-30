@@ -1,0 +1,65 @@
+<!-- input.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>输入页面</title>
+</head>
+<body>
+<h2>请输入内容</h2>
+
+<!-- 文字输入 -->
+<textarea id="text-input" placeholder="输入文本..."></textarea>
+<button onclick="submitText()">提交文本</button>
+
+<!-- 语音输入 -->
+<button onclick="startRecording()">开始录音</button>
+<button onclick="stopRecording()">停止录音</button>
+<audio id="audio-player" controls></audio>
+<button onclick="uploadAudio()">上传语音</button>
+
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/recordrtc/RecordRTC.min.js"></script>
+<script>
+    let mediaRecorder;
+    let audioChunks = [];
+
+    async function startRecording() {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        mediaRecorder.ondataavailable = event => {
+            audioChunks.push(event.data);
+        };
+        mediaRecorder.onstop = () => {
+            const blob = new Blob(audioChunks, { type: 'audio/mp3' });
+            const audioURL = URL.createObjectURL(blob);
+            document.getElementById('audio-player').src = audioURL;
+
+            // 上传文件
+            const formData = new FormData();
+            formData.append('file', blob, 'recording.mp3');
+            axios.post('/upload/audio', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            }).then(res => {
+                alert('上传成功');
+            });
+        };
+        mediaRecorder.start();
+    }
+
+    function stopRecording() {
+        mediaRecorder.stop();
+    }
+
+    function submitText() {
+        const text = document.getElementById('text-input').value;
+        axios.post('/submit/text', { text })
+            .then(res => alert('文本提交成功'));
+    }
+
+    function uploadAudio() {
+        // 已在 stopRecording 中上传
+    }
+</script>
+</body>
+</html>
