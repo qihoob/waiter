@@ -1,0 +1,242 @@
+# prompt.py - 完整的 PromptBuilder 实现
+
+import os
+import jieba
+from collector.prompt_builder.slot_extractor import extract_slots
+from collector.prompt_builder.nlu_service import IntentClassifier
+from database.DB  import get_user_order_history, get_user_played_games
+from mcp.weather_client import get_weather_by_location
+from collector.prompt_builder.config import (
+    GAME_RECOMMENDATION_RULES,
+    GAME_ENVIRONMENT_MAP,
+    ORDER_KEYWORDS,
+    INTENT_TO_TEMPLATE_MAP
+)
+
+
+class PromptBuilder:
+    def __init__(self, use_ml_intent=True, max_length=512, dict_path="E:\\work\\waiter\\collector\\custom_dict.txt"):
+        self.max_length = max_length
+        self.default_language = 'zh-CN'
+        self.dict_path = dict_path
+
+        if use_ml_intent:
+            from collector.prompt_builder.intent_classifier_ml import IntentClassifierML
+            self.intent_classifier = IntentClassifierML()
+            # 加载预训练模型或自行训练
+        else:
+            from collector.prompt_builder.nlu_service import IntentClassifier
+            self.intent_classifier = IntentClassifier()
+
+        # 加载自定义词典
+        self._load_custom_dict()
+
+    def _load_custom_dict(self):
+        """加载自定义词典"""
+        if os.path.exists(self.dict_path):
+            try:
+                jieba.load_userdict(self.dict_path)
+                print(f"[INFO] 自定义词典 {self.dict_path} 加载成功")
+            except Exception as e:
+                print(f"[ERROR] 加载自定义词典失败: {e}")
+        else:
+            print(f"[WARNING] 自定义词典文件不存在: {self.dict_path}")
+
+    def reload_custom_dict(self):
+        """重新加载自定义词典（热加载）"""
+        jieba.del_word(" ")  # 清除缓存词汇（可选）
+        self._load_custom_dict()
+        print("[INFO] 自定义词典已重新加载")
+
+    def _clean_input(self, text):
+        """
+        清洗用户输入文本
+        :param text: 原始输入字符串
+        :return: 清洗后的字符串
+        """
+        if not text:
+            return ""
+
+        # 去除首尾空白字符
+        text = text.strip()
+
+        # 限制最大长度（防止恶意或异常输入）
+        if len(text) > self.max_length:
+            text = text[:self.max_length]
+
+        return text
+
+    def _chinese_tokenize(self, text):
+        """
+        对中文文本进行分词，使用自定义词典提升识别准确率
+        :param text: 输入文本
+        :return: 分词后的字符串
+        """
+        if not text:
+            return ""
+
+        tokens = jieba.cut(text, cut_all=False)
+        return " ".join(tokens)
+
+    def detect_order_intent(self, text):
+        """
+        检测用户是否有下单意图
+        """
+        for keyword in ORDER_KEYWORDS:
+            if keyword in text:
+                return True
+        return False
+
+    def build_prompt(self, input_text, user_id=None, location="北京", is_order_placed=False, **kwargs):
+        # 1. 归一化输入
+        cleaned_text = self._clean_input(input_text)
+        tokenized_text = self._chinese_tokenize(cleaned_text)
+
+        # 2. 提取槽位
+        slots = extract_slots(tokenized_text)
+
+        # 3. 自动检测是否已下单
+        is_order_placed = is_order_placed or self.detect_order_intent(tokenized_text)
+
+        # 4. 获取天气信息
+        weather_info = get_weather_by_location(location)
+
+        # 5. 获取用户数据（可选）
+        order_history = []
+        played_games = []
+        if user_id:
+            order_history = get_user_order_history(user_id)
+            played_games = get_user_played_games(user_id)
+
+        # 6. 补全缺失槽位
+        if "人数" not in slots and "朋友聚会" in slots.get("场景", ""):
+            slots["人数"] = len(played_games) + 1 if played_games else 4
+
+        # 7. 如果已下单，进入“餐前娱乐”推荐流程
+        game_recommendation = []
+        if is_order_placed:
+            scene = slots.get("场景")
+            environment = slots.get("就餐环境")
+
+            if scene in GAME_RECOMMENDATION_RULES:
+                game_recommendation.extend(GAME_RECOMMENDATION_RULES[scene])
+
+            if environment in GAME_ENVIRONMENT_MAP:
+                game_recommendation = list(set(game_recommendation) & set(GAME_ENVIRONMENT_MAP[environment]))
+
+            slots["推荐游戏"] = ", ".join(game_recommendation) or "暂无推荐"
+
+        # 8. 意图识别
+        intent = self.intent_classifier.classify(tokenized_text, slots)
+
+        # 9. 动态生成 Prompt
+        prompt = self._generate_prompt(slots=slots, weather_info=weather_info,
+                                       order_history=order_history, played_games=played_games,
+                                       user_request=input_text, location=location)
+
+        return prompt
+
+    def _generate_prompt(self, slots, weather_info, order_history, played_games, user_request, location):
+        prompt_parts = []
+
+        # 基础信息
+        prompt_parts.append("""你是一个智能服务员，需要完成以下任务:
+    - 理解用户需求
+    - 提供餐厅服务
+    - 处理客户投诉
+    - 推荐特色菜品""")
+
+        # 用户请求
+        prompt_parts.append(f"当前用户请求：{user_request}\n")
+
+        # 当前城市与地方特色菜
+        prompt_parts.append(f"当前城市为 {location}，推荐当地特色菜品如{self._get_local_dishes(location, slots.get('菜系'))}。\n")
+
+        # 用户画像分析
+        profile_section = []
+        if "场景" in slots:
+            profile_section.append(f"场景类型：{slots['场景']}")
+        if "人数" in slots:
+            profile_section.append(f"参与人数：{slots['人数']}人")
+        if "菜系" in slots:
+            profile_section.append(f"菜系偏好：{slots['菜系']}")
+        if "就餐环境" in slots:
+            profile_section.append(f"就餐环境偏好：{slots['就餐环境']}")
+        if "就餐形式" in slots:
+            profile_section.append(f"就餐形式：{slots['就餐形式']}")
+
+        if profile_section:
+            prompt_parts.append("用户画像分析：\n- " + "\n- ".join(profile_section) + "\n")
+
+        # 健康饮食限制
+        health_section = []
+        if "健康偏好" in slots:
+            health_section.append(f"健康偏好：{slots['健康偏好']}")
+        if "忌口" in slots:
+            health_section.append(f"忌口要求：{', '.join(slots['忌口'])}")
+        if "过敏原" in slots:
+            health_section.append(f"过敏原规避：{', '.join(slots['过敏原'])}")
+
+        if health_section:
+            prompt_parts.append("健康与饮食限制：\n- " + "\n- ".join(health_section) + "\n")
+
+        # 外部条件影响
+        external_section = []
+        if "天气状态" in slots:
+            external_section.append(f"当前天气：{slots['天气状态']}")
+        elif weather_info.get("weather"):
+            external_section.append(f"当前天气：{weather_info['weather']}")
+        if "特殊节日" in slots:
+            external_section.append(f"是否节日/特殊场合：{slots['特殊节日']}")
+
+        if external_section:
+            prompt_parts.append("外部条件影响：\n- " + "\n- ".join(external_section) + "\n")
+
+        # 用户行为历史
+        history_section = []
+        if order_history:
+            history_section.append("历史点单记录：\n" + "\n".join(order_history))
+        if played_games:
+            history_section.append(f"玩过的游戏：{', '.join(played_games)}")
+
+        if history_section:
+            prompt_parts.append("\n".join(history_section))
+
+        # 结尾指令
+        prompt_parts.append("\n请根据以上信息综合判断并提供服务。")
+
+        return "\n".join(prompt_parts)
+
+
+    def _get_local_dishes(self, location, cuisine=None):
+        """
+        获取当前城市的特色菜品
+        :param location: 城市名称
+        :param cuisine: 菜系类型（可选）
+        :return: 特色菜品字符串
+        """
+        city_dishes_map = {
+            "北京": ["烤鸭", "炸酱面", "涮羊肉"],
+            "成都": ["火锅", "夫妻肺片", "担担面"],
+            "广州": ["早茶", "烧味", "白切鸡"],
+            "上海": ["小笼包", "红烧肉", "腌笃鲜"],
+            "杭州": ["西湖醋鱼", "龙井虾仁", "东坡肉"]
+        }
+
+        dishes = city_dishes_map.get(location, ["地方特色菜"])
+
+        if cuisine:
+            cuisine_based_map = {
+                "川菜": ["麻辣香锅", "水煮鱼", "麻婆豆腐"],
+                "粤菜": ["烧味", "白切鸡", "早茶"],
+                "本帮菜": ["红烧肉", "腌笃鲜", "油爆虾"],
+                "日料": ["寿司", "刺身", "味噌汤"]
+            }
+            dishes = cuisine_based_map.get(cuisine, dishes)
+
+        return ", ".join(dishes)
+
+if __name__ == '__main__':
+    prompt_builder = PromptBuilder(use_ml_intent=False, dict_path="E:\\work\\waiter\\collector\\custom_dict.txt")
+    prompt = prompt_builder.build_prompt("我们4个人来吃饭了，帮我推荐点清单的菜吧")
+    print(prompt)

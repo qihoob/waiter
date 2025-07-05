@@ -16,13 +16,21 @@ from collector.prompt_builder.template import PromptTemplateLoader
 
 
 class PromptBuilder:
-    def __init__(self, max_length=512, dict_path="E:\\work\\waiter\\collector\\custom_dict.txt"):
+    def __init__(self, max_length=512,use_ml_intent=False, dict_path="E:\\work\\waiter\\collector\\custom_dict.txt"):
         self.max_length = max_length
         self.default_language = 'zh-CN'
         self.dict_path = dict_path
         template_file_path = "E:\\work\\waiter\\collector\\templates\\prompt_templates.yaml"
         self.template_manager = PromptTemplateLoader(template_file_path)
-        self.intent_classifier = IntentClassifier()
+
+        if use_ml_intent:
+            from collector.prompt_builder.intent_classifier_ml import IntentClassifierML
+            self.intent_classifier = IntentClassifierML()
+            self.intent_classifier.train()  # 训练模型，假设数据已准备好
+            # 加载预训练模型或自行训练
+        else:
+            from collector.prompt_builder.nlu_service import IntentClassifier
+            self.intent_classifier = IntentClassifier()
 
         # 加载自定义词典
         self._load_custom_dict()
@@ -95,10 +103,12 @@ class PromptBuilder:
         """
         # 1. 归一化输入
         cleaned_text = self._clean_input(input_text)
-        tokenized_text = self._chinese_tokenize(cleaned_text)
+
 
         # 2. 提取槽位
-        slots = extract_slots(tokenized_text)
+        slots = extract_slots(cleaned_text)
+        tokenized_text = self._chinese_tokenize(cleaned_text)
+        slots.update(extract_slots(tokenized_text))
 
         # 3. 自动检测是否已下单
         is_order_placed = is_order_placed or self.detect_order_intent(tokenized_text)
@@ -150,13 +160,22 @@ class PromptBuilder:
         if is_order_placed and not template_name:
             template_name = "pre_meal_game_recommendation"
         elif not template_name:
-            intent = self.intent_classifier.classify(tokenized_text, slots)
+            intent = self.intent_classifier.classify(input_text, slots)
             template_name = self.intent_choose_template(intent)
 
         language = kwargs.get("language", self.default_language)
 
-        return self.template_manager.get_template(template_name, lang=language, **context_dict)
-
+        rendered_prompt = self.template_manager.get_template(template_name, lang=language, **context_dict)
+        return self.remove_empty_lines(rendered_prompt)
+    def remove_empty_lines(self, text):
+        """
+        去除文本中的空行（包括只含空白字符的行）
+        :param text: 输入文本
+        :return: 清洗后的文本
+        """
+        lines = text.splitlines()
+        cleaned_lines = [line.rstrip() for line in lines if line.strip()]
+        return '\n'.join(cleaned_lines)
 
     def _choose_template(self, slots):
         """
@@ -234,7 +253,7 @@ class PromptBuilder:
 
     def _map_slots_to_template_vars(self, slots, weather_info, order_history, played_games, game_recommendation, user_request, location):
         """
-        将槽位字段映射为模板变量名，并补充额外信息
+        将槽位字段映射为模板变量，并补充额外信息
         :param slots: 提取的槽位字典
         :param weather_info: 天气信息
         :param order_history: 历史点单记录
@@ -244,33 +263,38 @@ class PromptBuilder:
         :param location: 当前城市（用于地方菜系）
         :return: 可供模板渲染使用的上下文字典
         """
+
         context = {
-            # 基础信息
             "user_request": user_request,
             "city": location,
 
-            # 槽位字段
+            # 用户画像分析字段
             "scene": slots.get("场景"),
             "people_count": slots.get("人数"),
             "cuisine": slots.get("菜系"),
+            "taste": slots.get("口味"),  # 新增
+            "drink": slots.get("饮品"),  # 新增
+            "environment": slots.get("就餐环境"),
+            "meal_type": slots.get("就餐形式"),
+
+            # 健康与饮食限制字段
+            "health_preference": slots.get("健康偏好"),
             "dietary_restriction": slots.get("忌口"),
             "allergy_avoidance": slots.get("过敏原"),
-            "health_preference": slots.get("健康偏好"),
-            "meal_type": slots.get("就餐形式"),
+
+            # 外部条件影响字段
+            "weather": slots.get("天气状态") or weather_info.get("天气"),
             "special_event": slots.get("特殊节日"),
-            "environment": slots.get("就餐环境"),
-            "weather": slots.get("天气状态") or weather_info.get("weather"),
 
-            # 用户画像
+            # 历史数据
+            "conversation_history": "",  # 如果有对话历史可传入
             "order_history": "\n".join(order_history) if order_history else "无",
-            "played_games": ", ".join(played_games) if played_games else "无",
-            "game_recommendation": ", ".join(game_recommendation) if game_recommendation else "暂无推荐",
 
-            # 外部数据补充
-            "temperature": weather_info.get("temperature", 20),
+            # 游戏推荐字段
+            "game_recommendation": ", ".join(game_recommendation) if game_recommendation else "暂无推荐",
             "is_order_placed": slots.get("已下单", False),
 
-            # 地方特色菜补充字段（可选）
+            # 地方特色菜品
             "local_dishes": self._get_local_dishes(location, slots.get("菜系"))
         }
 
@@ -303,3 +327,6 @@ class PromptBuilder:
             dishes = cuisine_based_map.get(cuisine, dishes)
 
         return ", ".join(dishes)
+if __name__ == '__main__':
+    prompt_builder = PromptBuilder(use_ml_intent=True)
+    print(prompt_builder.build_prompt("4个人，来个饭前游戏，顺便来几瓶啤酒"))
