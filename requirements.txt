@@ -4,3 +4,9 @@ pydub
 mysql
 flask
 jieba
+langchain>=0.1.15
+openai>=1.12.0
+langchain-deepseek  # 你若用 DeepSeek API 接口则可能使用该库，或者使用 openai 替代
+requests>=2.31.0
+redis>=5.0.0  # 如果你后续需要将会话持久化到 Redis，可开启
+tiktoken>=0.5.1  # Token计数（langchain依赖）
