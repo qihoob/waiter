@@ -122,13 +122,19 @@ class IntentClassifierML:
         :return: list of (word, postag, head, relation)
         """
     # 调用 pipeline 执行分词、词性标注、依存句法分析
-        output = ltp.pipeline([text], tasks=["tok", "pos", "dep"])
+        output = ltp.pipeline([text], tasks=["cws", "pos", "dep"], raw_format=True)
 
-        words = output.tok[0]
+        words = output.cws[0]
         postags = output.pos[0]
         deps = output.dep[0]
 
         # 构建依存关系结构
-        arcs = [{"head": dep["head"] - 1, "relation": dep["rel"]} for dep in deps]  # head 转换为从0开始索引
+        arcs = []
+        for i, rel in enumerate(deps):
+            # 假设 head = i + 1，这取决于模型是否提供真实 head 信息
+            arcs.append({
+                "head": i + 1,
+                "relation": rel
+            })# head 转换为从0开始索引
 
         return list(zip(words, postags, arcs))
