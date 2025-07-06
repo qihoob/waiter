@@ -1,6 +1,7 @@
 
 from langchain.agents import Tool
-from menu_vector_store import  get_menu_retriever
+from llm.vector_store.menu_vector_store import  get_menu_retriever
+
 def get_menu_tool(restaurant_id: str):
     retriever = get_menu_retriever(restaurant_id)
 

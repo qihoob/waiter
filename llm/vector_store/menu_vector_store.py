@@ -1,15 +1,23 @@
 from langchain.vectorstores import Chroma
-from langchain.embeddings import OpenAIEmbeddings
 from langchain.schema import Document
+from langchain.agents import Tool
+from langchain_huggingface import HuggingFaceEmbeddings
 
-embedding_model = OpenAIEmbeddings()
+# 推荐使用中文优化的 BGE 模型（Better General Embedding）
+embedding_model = HuggingFaceEmbeddings(model_name="BAAI/bge-small-zh")
 
 
 def build_menu_vector_store(restaurant_id: str, menu_items: list[dict]):
     # 1. 构建 Document 列表
     docs = []
     for item in menu_items:
-        content = f"{item['name']}：{item['description']}。价格：{item['price']}元。标签：{'、'.join(item['tags'])}"
+        content = (
+            f"{item['name']}：{item['description']}。价格：{item['price']}元。"
+            f"标签：{'、'.join(item['tags'])}。"
+            f"适合：{'、'.join(item['suitable_for'])}。"
+            f"健康建议：{'、'.join(item['health_info'])}。"
+            f"推荐时间：{item['best_serving_time']}。"
+        )
         docs.append(Document(page_content=content, metadata={"restaurant_id": restaurant_id}))
 
     # 2. 向量存储路径（每个餐厅单独）
@@ -33,7 +41,6 @@ def get_menu_retriever(restaurant_id: str):
     )
     return vectordb.as_retriever()
 
-from langchain.agents import Tool
 
 def get_menu_tool(restaurant_id: str):
     retriever = get_menu_retriever(restaurant_id)
