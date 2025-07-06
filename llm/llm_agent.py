@@ -1,9 +1,9 @@
-import os
-
-from click import prompt
 from langchain.agents import initialize_agent
 from langchain.agents.agent_types import AgentType
-from llm.vector_store.menu_tool import get_menu_tool
+
+from llm.tool.call_kitchen_api import send_order_tool
+from llm.tool.menu_tool import menu_recommend_tool
+from llm.tool.confirm_order_checker import confirm_order_checker_tool
 from langchain_deepseek import ChatDeepSeek
 from memory.redis_memory_manager import RedisMemoryManager
 from collector.prompt_builder.prompt import PromptBuilder
@@ -12,7 +12,6 @@ from collector.prompt_builder.prompt import PromptBuilder
 memory_manager = RedisMemoryManager()
 # 构建提示词模板生成器
 builder = PromptBuilder(max_length=512)
-
 
 ds_model = ChatDeepSeek(
     model="deepseek-chat",
@@ -24,12 +23,11 @@ ds_model = ChatDeepSeek(
 
 
 def build_recommend_agent(user_id, session_id, input_text, restaurant_id):
-    tool = get_menu_tool(restaurant_id)
     # 构建上下文
     memory = memory_manager.get_memory(user_id, session_id)
     # 初始化智能体（zero-shot-agent）
     agent = initialize_agent(
-        tools=[tool],
+        tools=[menu_recommend_tool, confirm_order_checker_tool, send_order_tool],
         llm=ds_model,
         agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
         memory=memory,
