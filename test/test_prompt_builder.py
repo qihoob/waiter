@@ -1,5 +1,5 @@
 import unittest
-from collector.prompt_builder.prompt import PromptBuilder
+from prompt_builder import PromptBuilder
 
 class TestPromptBuilder(unittest.TestCase):
     def setUp(self):

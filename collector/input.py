@@ -48,6 +48,8 @@ class InputCollector:
                 # 记录输入内容（只记录前50个字符以保护隐私）
                 self.LOGGER.info(f"收到文本输入: {user_text[:50]}...")
 
+
+
                 # 返回成功响应
                 return jsonify({
                     "type": "text",

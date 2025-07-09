@@ -1,6 +1,6 @@
 import getpass
 import os
-from collector.prompt_builder.prompt import PromptBuilder
+from prompt_builder import PromptBuilder
 from langchain_deepseek import ChatDeepSeek
 from langchain.prompts import PromptTemplate
 from langchain.chains import ConversationChain
