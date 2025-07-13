@@ -14,3 +14,5 @@ tiktoken>=0.5.1  # Token计数（langchain依赖）
 sentence-transformers
 langchain-huggingface
 chromadb
+fuzzywuzzy
+ltp
