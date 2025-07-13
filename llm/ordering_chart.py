@@ -1,5 +1,4 @@
 from pydantic import BaseModel
-from llm_app import build_chain  # 你写的函数
 from flask import Flask, jsonify, request
 from llm_agent import build_recommend_agent
 
@@ -12,22 +11,6 @@ class ChatRequest(BaseModel):
     table_id: str
     input_text: str
 
-
-# 定义一个简单的 API 接口
-@app.route("/api/greet", methods=["POST"])
-def chat(req: ChatRequest):
-    # 构造 session_id，例如 user + 餐厅 + 桌号
-    session_id = f"{req.user_id}:{req.restaurant_id}:{req.table_id}"
-    # 构建对话链（含记忆）
-    chain = build_chain(
-        user_id=req.user_id,
-        session_id=session_id,
-        input_text=req.input_text
-    )
-    # 执行一次对话
-    reply = chain.run(input=req.input_text)
-
-    return {"reply": reply}
 
 
 # 定义一个简单的 API 接口

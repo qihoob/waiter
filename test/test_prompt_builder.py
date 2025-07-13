@@ -1,5 +1,6 @@
 import unittest
-from prompt_builder import PromptBuilder
+from prompt_builder.prompt import PromptBuilder
+from slot.slot_extractor import extract_slots
 
 class TestPromptBuilder(unittest.TestCase):
     def setUp(self):

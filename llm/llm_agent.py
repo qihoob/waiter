@@ -6,7 +6,7 @@ from llm.tool.menu_tool import menu_recommend_tool
 from llm.tool.confirm_order_checker import confirm_order_checker_tool
 from langchain_deepseek import ChatDeepSeek
 from memory.redis_memory_manager import RedisMemoryManager
-from prompt_builder import PromptBuilder
+from prompt_builder.prompt import PromptBuilder
 
 # 构建内存管理对象，以获取用户历史对话记录
 memory_manager = RedisMemoryManager()

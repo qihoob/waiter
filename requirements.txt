@@ -16,3 +16,4 @@ langchain-huggingface
 chromadb
 fuzzywuzzy
 ltp
+faiss-cpu

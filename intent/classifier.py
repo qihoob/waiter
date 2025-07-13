@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 # 初始化分词器
 tokenizer = get_tokenizer()
 
-from prompt_builder import INTENT_KEYWORDS
+from prompt_builder.prompt import INTENT_KEYWORDS
 
 
 class IntentPredictor:
