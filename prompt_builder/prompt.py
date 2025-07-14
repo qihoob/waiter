@@ -120,7 +120,7 @@ class PromptBuilder:
 
         return IntentClassifier()
 
-    def build_prompt(self, input_text, user_id=None, location="北京", is_order_placed=False, **kwargs):
+    def build_prompt(self, input_text, user_id=None, location="北京", is_order_placed=False, intent=None, **kwargs):
         """构建标准提示词
 
         Args:
@@ -160,7 +160,7 @@ class PromptBuilder:
             self._complete_missing_slots(slots, played_games)
 
             # 9 & 11. 生成游戏推荐 & 选择模板（合并步骤）
-            intent = self.intent_classifier.classify(input_text)
+           # intent = self.intent_classifier.classify(input_text)
             if is_order_placed:
                intent = self._generate_game_recommendation(slots)
             template_name = self._select_template(kwargs, intent)  # 直接使用原始输入文本
@@ -172,7 +172,8 @@ class PromptBuilder:
                 weather_info=weather_info,
                 order_history=order_history,
                 played_games=played_games,
-                user_request=input_text
+                user_request=input_text,
+                recommendation=kwargs.get("recommendation", self._get_local_dishes(location))
             )
 
             language = kwargs.get("language", self.default_language)
@@ -319,11 +320,13 @@ class PromptBuilder:
         order_history = kwargs.get("order_history", [])
         played_games = kwargs.get("played_games", [])
         user_request = kwargs.get("user_request", "")
+        recommendation = kwargs.get("recommendation",None)
 
         try:
             context = {
                 "user_request": user_request,
                 "city": location,
+                "recommendation": recommendation,
 
                 # 用户画像分析字段
                 "scene": slots.get("场景"),

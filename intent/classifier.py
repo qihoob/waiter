@@ -13,8 +13,6 @@ logger = logging.getLogger(__name__)
 # 初始化分词器
 tokenizer = get_tokenizer()
 
-from prompt_builder.prompt import INTENT_KEYWORDS
-
 
 class IntentPredictor:
     """
@@ -91,6 +89,7 @@ class IntentPredictor:
         matched_intents = []
 
         # 确保INTENT_KEYWORDS存在且是字典类型
+        from prompt_builder.config import INTENT_KEYWORDS
         if isinstance(INTENT_KEYWORDS, dict):
             for intent, keywords in INTENT_KEYWORDS.items():
                 if isinstance(keywords, list):

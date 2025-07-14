@@ -8,6 +8,7 @@ enhanced_basic_with_all:
 
     当前用户请求：{{ user_request }}
 
+    
     {% if city is not none %}
     当前城市为 {{ city }}，推荐当地特色菜品如{{ local_dishes }}。
     {% endif %}
@@ -45,6 +46,9 @@ enhanced_basic_with_all:
     历史点单记录：
     {{ order_history }}
     {% endif %}
+    
+    以下是一些可能感兴趣的菜品：
+        {{recommendation}}
     
     请根据以上信息综合判断并提供服务。
 pre_meal_game_recommendation:
@@ -102,6 +106,9 @@ pre_meal_game_recommendation:
     - {{ environment }}
     - 提供独立游戏区域（如包间或角落桌位）
     {% endif %}
+    
+     以下是一些可能感兴趣的游戏：
+        {{recommendation}}
     
     请根据上述信息为用户提供合适的餐前娱乐方案。
 
@@ -165,6 +172,9 @@ healthy_diet_recommendation:
     - {{ environment }}
     - 安静、适合慢节奏用餐
     {% endif %}
+    
+    以下是一些可能感兴趣的菜品：
+        {{recommendation}}
     
     请根据以上信息为用户提供合适的健康饮食方案。
 
@@ -230,6 +240,9 @@ weight_loss_meal_recommendation:
     - 提供营养成分表或热量标注菜单
     {% endif %}
     
+     以下是一些可能感兴趣的菜品：
+        {{recommendation}}
+    
     请根据上述信息为用户提供合适的低卡饮食推荐。
 
 intermittent_fasting_or_low_sugar_meal:
@@ -282,6 +295,9 @@ intermittent_fasting_or_low_sugar_meal:
     - 提供“轻断食友好”标识菜品
     - 支持小份供应或定制化服务
     {% endif %}
+    
+     以下是一些可能感兴趣的菜品：
+        {{recommendation}}
     
     请根据上述信息为用户提供合适的控糖/轻断食推荐。
 
@@ -341,6 +357,9 @@ vegetarian_meal_recommendation:
     - 提供明确的素食标识与制作方式说明
     {% endif %}
     
+     以下是一些可能感兴趣的菜品：
+        {{recommendation}}
+    
     请根据上述信息为素食者提供合适推荐。
 
 child_or_elderly_health_meal:
@@ -392,6 +411,9 @@ child_or_elderly_health_meal:
     - {{ environment }}
     - 提供儿童餐具、长者关怀服务
     {% endif %}
+    
+     以下是一些可能感兴趣的菜品：
+        {{recommendation}}
     
     请根据上述信息为儿童或老年人提供合适的健康饮食推荐。
 
@@ -452,6 +474,9 @@ cold_weather_meal_recommendation:
     - 温暖安静的包间或靠窗座位
     {% endif %}
     
+     以下是一些可能感兴趣的菜品：
+        {{recommendation}}
+    
     请根据上述信息为用户提供合适的冬季暖心推荐.
 
 summer_refreshing_meal_recommendation:
@@ -510,6 +535,9 @@ summer_refreshing_meal_recommendation:
     - 提供空调和通风良好的区域
     - 可提供外带/外卖服务
     {% endif %}
+    
+     以下是一些可能感兴趣的菜品：
+        {{recommendation}}
     
     请根据上述信息为用户提供合适的夏季清凉推荐.
 
@@ -572,5 +600,8 @@ festival_special_meal_recommendation:
     - 提供节日布置或灯光氛围
     - 支持定制化服务（如写祝福卡片）
     {% endif %}
+    
+     以下是一些可能感兴趣的菜品：
+        {{recommendation}}
     
     请根据上述信息为用户提供节日专属推荐。

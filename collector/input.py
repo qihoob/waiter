@@ -4,12 +4,24 @@ from constant.constant import MAX_INPUT_LENGTH
 import os
 import speech_recognition as sr
 
+from intent.classifier import IntentPredictor
+from prompt_builder.prompt import PromptBuilder
+from vector_builder.dish_loader import DishDataLoader
+from vector_builder.faiss_db import VectorDB
+from vector_builder.game_loader import GameDataLoader
+
+
 class InputCollector:
     def __init__(self, app):
         self.app = app
         self.LOGGER = app.logger
         self.recognizer = sr.Recognizer()
         self.MAX_INPUT_LENGTH = MAX_INPUT_LENGTH
+
+        self.predictor = IntentPredictor()
+        self.property = PromptBuilder()
+
+        self.vdb = VectorDB()
 
     def register_routes(self):
         """注册路由"""
@@ -47,6 +59,24 @@ class InputCollector:
 
                 # 记录输入内容（只记录前50个字符以保护隐私）
                 self.LOGGER.info(f"收到文本输入: {user_text[:50]}...")
+
+                #处理用户输入，对输入进行意图判断
+                intent  = self.predictor.classify(user_text)
+
+                index_name = "dish"
+                #根据意图选择索引库
+                if intent in ["game_recommendation"]:
+                    index_name = "game"
+                    self.vdb.load("game_db", index_name="game")
+                else:
+                    self.vdb.load("dish_db", index_name="dish")
+                #从向量数据库获取推荐数据
+                recommendation = self.vdb.search(user_text, top_k=1)
+                prompt = self.property.build_prompt(user_text, intent=intent, recommendation=recommendation)
+
+
+                #查询大模型
+                response = self.property.query_model(prompt)
 
 
 
@@ -111,3 +141,4 @@ class InputCollector:
                 error_msg = f"Google 语音识别服务错误: {e}"
                 self.LOGGER.error(error_msg)
                 raise Exception(error_msg)
+
