@@ -86,8 +86,8 @@ class ChineseTokenizer:
     - 支持缓存提升性能
     - 支持词性标注
     - 支持依存句法分析
-    - ✅ 支持自定义词典加载与热更新
-    - ✅ 支持中文/英文数字归一化
+    - 支持自定义词典加载与热更新
+    - 支持中文/英文数字归一化
     """
 
     def __init__(self, model_path: Optional[str] = None, dict_path: Optional[str] = None):

@@ -6,10 +6,7 @@ import speech_recognition as sr
 
 from intent.classifier import IntentPredictor
 from prompt_builder.prompt import PromptBuilder
-from vector_builder.dish_loader import DishDataLoader
 from vector_builder.faiss_db import VectorDB
-from vector_builder.game_loader import GameDataLoader
-
 
 class InputCollector:
     def __init__(self, app):
@@ -72,7 +69,7 @@ class InputCollector:
                     self.vdb.load("dish_db", index_name="dish")
                 #从向量数据库获取推荐数据
                 recommendation = self.vdb.search(user_text, top_k=1)
-                prompt = self.property.build_prompt(user_text, intent=intent, recommendation=recommendation)
+                prompt = self.property.build_prompt(user_text, intent=intent)
 
 
                 #查询大模型

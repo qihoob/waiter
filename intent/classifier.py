@@ -113,7 +113,7 @@ class IntentPredictor:
         """
         # TODO: 后续可以实现具体的句法分析增强逻辑
         return intent_scores
-    def classify(self, text, slots=None, is_tokenized=False):
+    def classify(self, text, is_tokenized=False):
         """
         分类意图
 
@@ -147,23 +147,10 @@ class IntentPredictor:
         # 句法分析得分增强
         intent_scores = self.enhance_intent_scores_with_syntax(text if not is_tokenized else text[:20], intent_scores)
 
-        # 槽位信息增强
-        if slots:
-            health_pref = slots.get("健康偏好")
-            if health_pref == "低脂":
-                intent_scores["weight_loss"] = intent_scores.get("weight_loss", 0) + self.HEALTH_PREF_LOW_FAT
-            elif health_pref == "高蛋白":
-                intent_scores["fitness_nutrition"] = intent_scores.get("fitness_nutrition", 0) + self.HEALTH_PREF_HIGH_PROTEIN
-            elif health_pref == "无糖":
-                intent_scores["intermittent_fasting"] = intent_scores.get("intermittent_fasting", 0) + self.HEALTH_PREF_SUGAR_FREE
+
 
         # 排序并输出所有意图
         sorted_intents = sorted(intent_scores.items(), key=lambda x: x[1], reverse=True)
-
-        # 记录调试信息
-        logger.info("【意图识别结果】")
-        for intent, score in sorted_intents:
-            logger.info(f"{intent}: {score:.4f}")
 
         return sorted_intents[0][0] if sorted_intents else self.DEFAULT_FALLBACK_INTENT
 
@@ -174,11 +161,10 @@ if __name__ == '__main__':
 
     # 测试文本
     test_text = "我想吃低脂的食物，最好是高蛋白的"
-    slots = {"健康偏好": "低脂"}
 
     # 进行意图分类
-    intent = predictor.classify(test_text, slots)
+    intent = predictor.classify(test_text, False)
     print(f"识别的意图: {intent}")
 
     tokenized_text = tokenizer.tokenize("我想吃低脂的食物，最好是高蛋白的")
-    predictor.classify(tokenized_text, slots, is_tokenized=True)
+    predictor.classify(tokenized_text, is_tokenized=True)

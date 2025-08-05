@@ -4,6 +4,7 @@ prompt.py - 优化后的 PromptBuilder 实现
 
 import logging
 
+
 # 配置日志记录
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -11,13 +12,31 @@ logger = logging.getLogger(__name__)
 # 尝试导入模块（假设这些模块和配置已存在）
 try:
     from slot.slot_extractor import extract_slots
-    from mcp.weather_client import get_weather_by_location
     from prompt_builder.config import (
         GAME_RECOMMENDATION_RULES,
         GAME_ENVIRONMENT_MAP,
         ORDER_KEYWORDS,
         INTENT_TO_TEMPLATE_MAP
     )
+    from slot import (
+        TextCleaningSlotHandler,
+        TokenizationSlotHandler,
+        BaseSlotExtractionHandler,
+        OrderDetectionSlotHandler,
+        WeatherSlotHandler,
+        UserDataSlotHandler,
+        MissingSlotCompletionHandler,
+        SceneSlotHandler,
+        PeopleCountSlotHandler,
+        CuisineSlotHandler,
+        TasteSlotHandler,
+        HealthPreferenceSlotHandler,
+        GameRecommendationSlotHandler,
+        TemplateSelectionSlotHandler,
+        ContextBuildingSlotHandler,
+        TemplateRenderingSlotHandler
+    )
+
     from collector.templates.template import PromptTemplateLoader
     from intent.nlu_classifier import IntentClassifier
     from intent.classifier import IntentPredictor
@@ -119,74 +138,54 @@ class PromptBuilder:
                 logger.warning(f"加载机器学习意图分类器失败，回退到规则分类器: {e}")
 
         return IntentClassifier()
+# 修改后的 build_prompt 方法
+def build_prompt(self, input_text, user_id=None,  intent=None, **kwargs):
+    """构建标准提示词（基于槽位处理的责任链模式实现）
 
-    def build_prompt(self, input_text, user_id=None, location="北京", is_order_placed=False, intent=None, **kwargs):
-        """构建标准提示词
+    Args:
+        input_text: 用户输入文本
+        user_id: 用户ID（用于获取历史数据）
+        location: 当前城市（用于天气和地方菜系）
+        is_order_placed: 是否已下单（外部传入）
+        **kwargs: 其他参数（如 template_name, language 等）
 
-        Args:
-            input_text: 用户输入文本
-            user_id: 用户ID（用于获取历史数据）
-            location: 当前城市（用于天气和地方菜系）
-            is_order_placed: 是否已下单（外部传入）
-            **kwargs: 其他参数（如 template_name, language 等）
+    Returns:
+        str: 构建好的提示词
+    """
+    try:
+        # 构建初始上下文
+        context = {
+            'input_text': input_text,
+            'user_id': user_id,
+            'intent': intent,
+            'kwargs': kwargs
+        }
 
-        Returns:
-            str: 构建好的提示词
-        """
-        try:
-            # 1. 归一化输入
-            cleaned_text = self._clean_input(input_text)
+        # 构建槽位处理责任链
+        slot_handler_chain = TextCleaningSlotHandler(self)
+        slot_handler_chain.set_next(TokenizationSlotHandler()) \
+            .set_next(BaseSlotExtractionHandler(self)) \
+            .set_next(OrderDetectionSlotHandler(self)) \
+            .set_next(WeatherSlotHandler(self)) \
+            .set_next(UserDataSlotHandler(self)) \
+            .set_next(MissingSlotCompletionHandler(self)) \
+            .set_next(SceneSlotHandler()) \
+            .set_next(PeopleCountSlotHandler()) \
+            .set_next(CuisineSlotHandler()) \
+            .set_next(TasteSlotHandler()) \
+            .set_next(HealthPreferenceSlotHandler()) \
+            .set_next(GameRecommendationSlotHandler(self)) \
+            .set_next(TemplateSelectionSlotHandler(self)) \
+            .set_next(ContextBuildingSlotHandler(self)) \
+            .set_next(TemplateRenderingSlotHandler(self))
 
-            # 2. 获取分词器
-            from dict.ltp_tokenizer import get_tokenizer
-            tokenizer = get_tokenizer()
+        # 处理请求并获取结果
+        result_context = slot_handler_chain.handle(context)
+        return result_context['result']
 
-            # 3. 单次分词：避免在槽位提取和意图识别中重复调用
-            tokenized_text = tokenizer.tokenize(cleaned_text.lower())
-
-            # 4. 提取槽位信息（传递已有的分词结果以避免重复计算）
-            slots = self._extract_slots(cleaned_text, tokenizer, tokenized_text)
-
-            # 5. 自动检测是否已下单（使用已有的分词结果）
-            is_order_placed = is_order_placed or self._detect_order_intent(tokenized_text)
-
-            # 6. 获取天气信息
-            weather_info = self._get_weather(location)
-
-            # 7. 获取用户数据（可选）
-            order_history, played_games = self._get_user_data(user_id)
-
-            # 8. 补全缺失槽位
-            self._complete_missing_slots(slots, played_games)
-
-            # 9 & 11. 生成游戏推荐 & 选择模板（合并步骤）
-           # intent = self.intent_classifier.classify(input_text)
-            if is_order_placed:
-               intent = self._generate_game_recommendation(slots)
-            template_name = self._select_template(kwargs, intent)  # 直接使用原始输入文本
-
-            # 10. 构建上下文（使用预定义变量）
-            context_dict = self._build_context(
-                slots=slots,
-                location=location,
-                weather_info=weather_info,
-                order_history=order_history,
-                played_games=played_games,
-                user_request=input_text,
-                recommendation=kwargs.get("recommendation", self._get_local_dishes(location))
-            )
-
-            language = kwargs.get("language", self.default_language)
-
-            # 12. 渲染模板
-            rendered_prompt = self.template_manager.get_template(template_name, lang=language, **context_dict)
-
-            # 13. 清洗最终结果
-            return self.remove_empty_lines(rendered_prompt)
-
-        except Exception as e:
-            logger.error(f"构建提示词时发生错误: {e}", exc_info=True)
-            raise
+    except Exception as e:
+        logger.error(f"构建提示词时发生错误: {e}", exc_info=True)
+        raise
 
 
     def _extract_slots(self, text, tokenizer, tokenized_text=None):
@@ -320,13 +319,11 @@ class PromptBuilder:
         order_history = kwargs.get("order_history", [])
         played_games = kwargs.get("played_games", [])
         user_request = kwargs.get("user_request", "")
-        recommendation = kwargs.get("recommendation",None)
 
         try:
             context = {
                 "user_request": user_request,
                 "city": location,
-                "recommendation": recommendation,
 
                 # 用户画像分析字段
                 "scene": slots.get("场景"),
@@ -387,27 +384,7 @@ class PromptBuilder:
             logger.warning(f"意图分类失败，使用默认模板: {e}")
             return "enhanced_basic_with_all"
 
-    def _clean_input(self, text):
-        """清洗用户输入文本
 
-        Args:
-            text: 原始输入字符串
-
-        Returns:
-            str: 清洗后的字符串
-        """
-        if not text:
-            return ""
-
-        # 去除首尾空白字符
-        text = text.strip()
-
-        # 限制最大长度（防止恶意或异常输入）
-        if len(text) > self.max_length:
-            logger.info(f"输入超过最大长度限制 {self.max_length}，已截断")
-            return text[:self.max_length]
-
-        return text
 
     def remove_empty_lines(self, text):
         """去除文本中的空行（包括只含空白字符的行）

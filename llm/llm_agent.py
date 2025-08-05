@@ -11,7 +11,7 @@ from prompt_builder.prompt import PromptBuilder
 # 构建内存管理对象，以获取用户历史对话记录
 memory_manager = RedisMemoryManager()
 # 构建提示词模板生成器
-builder = PromptBuilder(max_length=512)
+builder = PromptBuilder()
 
 ds_model = ChatDeepSeek(
     model="deepseek-chat",
@@ -35,6 +35,7 @@ def build_recommend_agent(user_id, session_id, input_text, restaurant_id):
     )
     # 构建提示词
     prompt = builder.build_prompt(input_text, user_id=user_id, location='location')
+    print(f"构建的提示词: {prompt}")
     # 下边注释测试用
     # prompt='''
     #     你是一个智能服务员，需要完成以下任务
@@ -55,3 +56,6 @@ def build_recommend_agent(user_id, session_id, input_text, restaurant_id):
     #     请根据以上信息综合判断并提供服务。
     # '''
     return agent.run(prompt)
+
+if __name__ == '__main__':
+    print(build_recommend_agent('user_id', 'session_id', '4人聚餐，来点香辣菜', None))
