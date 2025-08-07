@@ -3,7 +3,8 @@ from slot.SlotHandler import SlotHandler
 
 class PeopleCountSlotHandler(SlotHandler):
     """人数槽位处理器"""
-
+    def __init__(self,next_handler=None):
+        super().__init__(next_handler)
     def handle(self, context: Dict[str, Any]) -> Dict[str, Any]:
         slots = context.get('slots', {})
         people_count = slots.get('人数')

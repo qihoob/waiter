@@ -4,6 +4,8 @@ from slot.SlotHandler import SlotHandler
 class CuisineSlotHandler(SlotHandler):
     """菜系槽位处理器"""
 
+    def __init__(self,next_handler=None):
+        super().__init__(next_handler)
     def handle(self, context: Dict[str, Any]) -> Dict[str, Any]:
         slots = context.get('slots', {})
         cuisine = slots.get('菜系')

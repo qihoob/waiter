@@ -1,3 +1,4 @@
+# E:\work\waiter\slot\TextCleaningSlotHandler.py
 from typing import Dict, Any
 from slot.SlotHandler import SlotHandler
 import logging
@@ -86,6 +87,8 @@ class TextCleaningSlotHandler(SlotHandler):
 
     def __init__(self, next_handler=None):
         super().__init__(next_handler)
+        from slot.global_vars import GLOBAL_CONFIG
+        self.max_length = GLOBAL_CONFIG.get('max_input_length', 512)
 
     def handle(self, context: Dict[str, Any]) -> Dict[str, Any]:
         # 清洗输入文本
@@ -133,9 +136,6 @@ class TextCleaningSlotHandler(SlotHandler):
             str: 转换后的文本
         """
         try:
-            # 繁简转换映射表（常用字）
-
-
             # 执行繁简转换
             for traditional, simplified in traditional_to_simplified.items():
                 text = text.replace(traditional, simplified)

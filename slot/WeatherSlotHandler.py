@@ -1,3 +1,4 @@
+# E:\work\waiter\slot\WeatherSlotHandler.py
 from typing import Dict, Any
 from slot.SlotHandler import SlotHandler
 import requests
@@ -17,7 +18,7 @@ CACHE_EXPIRE_TIME = 1800  # 30分钟缓存
 class WeatherSlotHandler(SlotHandler):
     """天气信息槽位处理器"""
 
-    def __init__(self,  next_handler=None):
+    def __init__(self, api_key=None, next_handler=None):
         """
         初始化天气信息处理器
 
@@ -26,19 +27,40 @@ class WeatherSlotHandler(SlotHandler):
             next_handler: 下一个处理器
         """
         super().__init__(next_handler)
-        self.api_key = ""  # 在实际使用中可以通过配置文件或环境变量设置API密钥
+        self.api_key = api_key or self._get_api_key()
+
+    def _get_api_key(self):
+        """从环境变量或配置中获取API密钥"""
+        import os
+        return os.environ.get('OPENWEATHER_API_KEY', '')
 
     def handle(self, context: Dict[str, Any]) -> Dict[str, Any]:
-        # 从上下文的槽位中获取城市信息
-        location = context['slots'].get('city') if 'slots' in context else None
+        try:
+            # 从上下文的槽位中获取城市信息
+            location = None
+            if 'slots' in context:
+                location = context['slots'].get('city') or context['slots'].get('location')
 
-        # 将天气信息添加到槽位中
-        if 'slots' not in context:
-            context['slots'] = {}
+            # 如果槽位中没有城市信息，则使用上下文中的位置信息
+            if not location:
+                location = context.get('location', '北京')
 
-        weather_info = self._get_weather(location)
-        context['slots']['weather'] = weather_info.get('天气')
-        context['weather_info'] = weather_info
+            # 获取天气信息
+            weather_info = self._get_weather(location)
+
+            # 将天气信息添加到上下文和槽位中
+            context['weather_info'] = weather_info
+            if 'slots' not in context:
+                context['slots'] = {}
+            context['slots']['天气'] = weather_info.get('天气', '未知')
+
+            logger.info(f"获取到 {location} 的天气信息")
+        except Exception as e:
+            logger.warning(f"获取天气信息失败: {e}")
+            context['weather_info'] = {"天气": "未知"}
+            if 'slots' not in context:
+                context['slots'] = {}
+            context['slots']['天气'] = "未知"
 
         return super().handle(context)
 

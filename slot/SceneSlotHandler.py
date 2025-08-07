@@ -3,7 +3,6 @@ from slot.SlotHandler import SlotHandler
 
 class SceneSlotHandler(SlotHandler):
     """场景槽位处理器"""
-
     def handle(self, context: Dict[str, Any]) -> Dict[str, Any]:
         slots = context.get('slots', {})
         # 处理场景相关的槽位
