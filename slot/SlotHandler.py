@@ -2,6 +2,10 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 class SlotHandler(ABC):
     """槽位处理责任链的抽象基类"""
 
@@ -17,6 +21,9 @@ class SlotHandler(ABC):
     def handle(self, context: Dict[str, Any]) -> Dict[str, Any]:
         """处理槽位"""
         if self._next_handler:
+            logger.debug(f"Passing to next handler: {self._next_handler.__class__.__name__}")
+            # 调用下一个处理器
+            logger.info(f"current context: {context}")
             return self._next_handler.handle(context)
         return context
 

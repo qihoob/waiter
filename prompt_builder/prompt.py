@@ -1,6 +1,6 @@
-# E:\work\waiter\prompt_builder\prompt.py
+# E:\work\waiter\prompt_builder\prompt.py (重写版本)
 """
-prompt.py - 优化后的 PromptBuilder 实现
+prompt.py - 重写后的 PromptBuilder 实现
 """
 
 import logging
@@ -31,15 +31,25 @@ try:
     from slot.MissingSlotCompletionHandler import MissingSlotCompletionHandler
     from slot.SceneSlotHandler import SceneSlotHandler
     from slot.PeopleCountSlotHandler import PeopleCountSlotHandler
-    from slot.CuisineSlotHandler import CuisineSlotHandler
+    from slot.CuisineFlavorHandler import CuisineFlavorHandler
     from slot.TasteSlotHandler import TasteSlotHandler
     from slot.HealthPreferenceSlotHandler import HealthPreferenceSlotHandler
-    from slot.GameSlotHandler import GameRecommendationSlotHandler
+    from slot.GameSlotHandler import GameSlotHandler
     from slot.TemplateSelectionSlotHandler import TemplateSelectionSlotHandler
     from slot.ContextBuildingSlotHandler import ContextBuildingSlotHandler
     from slot.TemplateRenderingSlotHandler import TemplateRenderingSlotHandler
     from slot.ContextHistoryRetrievalHandler import ContextHistoryRetrievalHandler
     from slot.ContextHistorySaveHandler import ContextHistorySaveHandler
+
+    # 新增的SlotHandler处理器
+    from slot.AllergenSlotHandler import AllergenSlotHandler
+    from slot.DietaryRestrictionSlotHandler import DietaryRestrictionSlotHandler
+    from slot.DishBasedCuisineClassifier import DishBasedCuisineClassifier
+    from slot.DrinkSlotHandler import DrinkSlotHandler
+    from slot.FestivalSlotHandler import FestivalSlotHandler
+    from slot.GameSceneSlotHandler import GameSceneSlotHandler
+    from slot.LocationSlotHandler import LocationSlotHandler
+    from slot.SlotValidationHandler import SlotValidationHandler
 
     from collector.templates.template import PromptTemplateLoader
     from intent.nlu_classifier import IntentClassifier
@@ -102,7 +112,7 @@ class PromptBuilder:
             input_text: 用户输入文本
             user_id: 用户ID
             location: 位置信息
-            is_order_placed: 是否已下单
+            is_order: 是否已下单
             intent: 意图
             **kwargs: 其他参数
 
@@ -120,37 +130,90 @@ class PromptBuilder:
                 'kwargs': kwargs
             }
 
-            # 构建槽位处理责任链
-            slot_handler_chain = TextCleaningSlotHandler()
-            slot_handler_chain.set_next(TokenizationSlotHandler()) \
-                .set_next(BaseSlotExtractionHandler()) \
-                .set_next(OrderDetectionSlotHandler()) \
-                .set_next(WeatherSlotHandler()) \
-                .set_next(UserDataSlotHandler()) \
-                .set_next(SceneSlotHandler()) \
-                .set_next(PeopleCountSlotHandler()) \
-                .set_next(CuisineSlotHandler()) \
-                .set_next(TasteSlotHandler()) \
-                .set_next(HealthPreferenceSlotHandler()) \
-                .set_next(ContextHistoryRetrievalHandler())\
-                .set_next(ContextHistorySaveHandler()) \
-                .set_next(TemplateSelectionSlotHandler()) \
-                .set_next(ContextBuildingSlotHandler()) \
-                .set_next(TemplateRenderingSlotHandler())
+            # 构建完整的槽位处理责任链
+            slot_handler_chain = self._build_complete_slot_chain()
 
             # 处理请求并获取结果
             try:
                 result = slot_handler_chain.handle(context)
-                return result["result"]
+                return result.get("result", "未能生成提示词")
             except SlotHandlerInterrupt as e:
-            # 处理链被中断，返回中断时的上下文
+                # 处理链被中断，返回中断时的上下文
                 logger.info("处理链被中断，等待用户输入")
-                return e.result
-            return result_context['result']
+                return self._handle_chain_interruption(e.context)
 
         except Exception as e:
             logger.error(f"构建提示词时发生错误: {e}", exc_info=True)
-            raise
+            return f"提示词构建失败: {str(e)}"
+
+    def _build_complete_slot_chain(self) -> SlotHandler:
+        """
+        构建完整的槽位处理责任链，包含所有可用的SlotHandler处理器
+
+        Returns:
+            SlotHandler: 构建好的处理链起始节点
+        """
+        # 第一阶段：文本预处理
+        chain = TextCleaningSlotHandler()  # 文本清洗
+        chain = chain.set_next(TokenizationSlotHandler())  # 文本分词
+
+        # 第二阶段：基础信息提取
+        chain = chain.set_next(BaseSlotExtractionHandler())  # 基础槽位提取
+        chain = chain.set_next(OrderDetectionSlotHandler())  # 订单检测
+        chain = chain.set_next(LocationSlotHandler())  # 位置信息提取
+        chain = chain.set_next(WeatherSlotHandler())  # 天气信息提取
+        chain = chain.set_next(UserDataSlotHandler())  # 用户数据提取
+
+        # 第三阶段：场景和人数信息提取
+        chain = chain.set_next(SceneSlotHandler())  # 场景信息提取
+        chain = chain.set_next(GameSceneSlotHandler())  # 游戏场景信息提取
+        chain = chain.set_next(PeopleCountSlotHandler())  # 人数信息提取
+
+        # 第四阶段：餐饮相关信息提取
+        chain = chain.set_next(DishBasedCuisineClassifier())  # 基于菜品的菜系分类
+        chain = chain.set_next(CuisineFlavorHandler())  # 菜系信息提取
+        chain = chain.set_next(TasteSlotHandler())  # 口味信息提取
+        chain = chain.set_next(HealthPreferenceSlotHandler())  # 健康偏好提取
+        chain = chain.set_next(DietaryRestrictionSlotHandler())  # 忌口信息提取
+        chain = chain.set_next(AllergenSlotHandler())  # 过敏原信息提取
+        chain = chain.set_next(DrinkSlotHandler())  # 饮品信息提取
+
+        # 第五阶段：其他信息提取
+        chain = chain.set_next(FestivalSlotHandler())  # 节日信息提取
+        chain = chain.set_next(GameSlotHandler())  # 游戏推荐信息提取
+
+        # 第六阶段：上下文管理和槽位补全
+        chain = chain.set_next(ContextHistoryRetrievalHandler())  # 上下文历史检索
+        #chain = chain.set_next(MissingSlotCompletionHandler())  # 缺失槽位补全
+        chain = chain.set_next(ContextHistorySaveHandler())  # 上下文历史保存
+
+        # 第七阶段：模板处理
+        chain = chain.set_next(TemplateSelectionSlotHandler())  # 模板选择
+        chain = chain.set_next(ContextBuildingSlotHandler())  # 上下文构建
+        chain = chain.set_next(TemplateRenderingSlotHandler())  # 模板渲染
+
+        # 返回链的起始节点
+        return chain.root if hasattr(chain, 'root') else chain
+
+    def _handle_chain_interruption(self, context: dict) -> str:
+        """
+        处理槽位链中断情况
+
+        Args:
+            context: 中断时的上下文
+
+        Returns:
+            str: 适当的响应信息
+        """
+        # 检查是否有缺失槽位需要用户补充
+        missing_slots = context.get('missing_slots', [])
+        if missing_slots:
+            prompt_msg = context.get('prompt_message')
+            if prompt_msg:
+                return prompt_msg
+
+        # 默认响应
+        return "请提供更多信息以便更好地为您服务"
 
     def _load_template_manager(self):
         """加载模板管理器"""
@@ -184,20 +247,32 @@ class PromptCommandLineInterface:
 
     def start_interactive_mode(self):
         """启动交互模式"""
-        print("=" * 50)
-        print("智能提示词构建器 - 交互模式")
-        print("=" * 50)
-        print("输入您的请求，系统将为您构建相应的提示词")
-        print("输入 'quit' 或 'exit' 退出程序")
-        print("输入 'help' 查看帮助信息")
-        print("-" * 50)
+        print("=" * 60)
+        print("🍽️  智能提示词构建器 - 完整版交互模式")
+        print("=" * 60)
+        print("📝 输入您的请求，系统将为您构建相应的提示词")
+        print("💡 示例:")
+        print("   • 我想点一份牛排")
+        print("   • 4人聚餐，来点香辣菜")
+        print("   • 推荐一些适合夏天的清爽菜品")
+        print("   • 有什么适合减肥的餐品")
+        print("   • 我想吃清淡一点的白切鸡")
+        print("   • 三个人吃粤菜有什么推荐？")
+        print("   • 我对花生过敏，想要低脂的食物")
+        print("   • 情侣约会想玩游戏，推荐一下")
+        print("-" * 60)
+        print("⌨️  命令:")
+        print("   • 'help' 或 '帮助' - 显示帮助信息")
+        print("   • 'quit' 或 'exit' 或 '退出' - 退出程序")
+        print("   • 'clear' 或 'cls' - 清屏")
+        print("=" * 60)
 
         while True:
             try:
-                user_input = input("\n请输入您的请求: ").strip()
+                user_input = input("\n💬 请输入您的请求: ").strip()
 
                 if user_input.lower() in ['quit', 'exit', '退出']:
-                    print("感谢使用，再见！")
+                    print("👋 感谢使用，再见！")
                     break
                 elif user_input.lower() in ['help', '帮助']:
                     self._show_help()
@@ -215,34 +290,59 @@ class PromptCommandLineInterface:
                     location=self.location
                 )
 
-                print("\n生成的提示词:")
-                print("-" * 30)
+                print("\n🤖 生成的提示词:")
+                print("─" * 40)
                 print(result)
-                print("-" * 30)
+                print("─" * 40)
 
             except KeyboardInterrupt:
-                print("\n\n程序被用户中断，再见！")
+                print("\n\n👋 程序被用户中断，再见！")
                 break
             except Exception as e:
-                print(f"\n处理请求时发生错误: {e}")
+                print(f"\n❌ 处理请求时发生错误: {e}")
                 logger.error(f"交互模式错误: {e}", exc_info=True)
 
     def _show_help(self):
         """显示帮助信息"""
         help_text = """
-可用命令:
+📖 可用命令:
   help      - 显示此帮助信息
   quit/exit - 退出程序
   clear/cls - 清屏
+
+🍽️ 使用说明:
+  直接输入您的自然语言请求，系统支持多种信息识别:
   
-使用说明:
-  直接输入您的自然语言请求，例如:
-  - "我想点一份牛排"
-  - "4人聚餐，来点香辣菜"
-  - "推荐一些适合夏天的清爽菜品"
-  - "有什么适合减肥的餐品"
-  
-系统将根据您的请求生成相应的提示词。
+  🍜 餐饮相关:
+    - "我想点一份牛排"
+    - "4人聚餐，来点香辣菜"
+    - "推荐一些适合夏天的清爽菜品"
+    - "有什么适合减肥的餐品"
+    - "我想吃清淡一点的白切鸡"
+    - "三个人吃粤菜有什么推荐？"
+    - "我想要一杯可乐和珍珠奶茶"
+    
+  🚫 健康相关:
+    - "我对花生过敏"
+    - "不吃辣，要清淡的"
+    - "我在减肥，想要低脂的食物"
+    
+  🎮 娱乐相关:
+    - "朋友聚会想玩游戏"
+    - "情人节推荐一些浪漫的游戏"
+    
+  🏠 其他场景:
+    - "今天天气怎么样，推荐点什么？"
+    - "圣诞节想和家人一起吃饭"
+
+🧠 系统特性:
+  - 自动识别菜系（川菜、粤菜、湘菜等）
+  - 识别特色菜品和口味偏好
+  - 理解人数、场景等用餐信息
+  - 根据历史上下文优化推荐
+  - 支持健康偏好、忌口和过敏原需求
+  - 识别节日和特殊场景
+  - 支持游戏推荐
         """
         print(help_text)
 
@@ -263,10 +363,19 @@ class PromptCommandLineInterface:
             logger.error(f"单次提示词生成错误: {e}", exc_info=True)
             return f"生成提示词时发生错误: {e}"
 
-
 def main():
     """主函数"""
-    parser = argparse.ArgumentParser(description="智能提示词构建器")
+    parser = argparse.ArgumentParser(
+        description="智能提示词构建器 - 完整版",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+使用示例:
+  %(prog)s                           # 启动交互模式
+  %(prog)s -I                        # 启动交互模式（同上）
+  %(prog)s -i "我想吃清淡的白切鸡"   # 单次执行模式
+  %(prog)s --input "推荐粤菜" --user-id user123
+        """
+    )
     parser.add_argument('--input', '-i', type=str, help='输入文本')
     parser.add_argument('--user-id', type=str, default='cli_user', help='用户ID')
     parser.add_argument('--location', type=str, default='北京', help='位置信息')
@@ -283,11 +392,11 @@ def main():
     elif args.input:
         # 单次执行模式
         result = cli.run_single_prompt(args.input, args.user_id, args.location)
+        print("🤖 生成的提示词:")
         print(result)
     else:
         # 默认启动交互模式
         cli.start_interactive_mode()
-
 
 if __name__ == '__main__':
     main()
