@@ -3,7 +3,7 @@
 Slot模块初始化文件
 """
 
-from .SlotHandler import SlotHandler
+from .SlotHandler import SlotHandler, SlotHandlerInterrupt
 from .BaseSlotExtractionHandler import BaseSlotExtractionHandler
 from .ContextBuildingSlotHandler import ContextBuildingSlotHandler
 from .CuisineSlotHandler import CuisineSlotHandler
@@ -21,6 +21,14 @@ from .TextCleaningSlotHandler import TextCleaningSlotHandler
 from .TokenizationSlotHandler import TokenizationSlotHandler
 from .UserDataSlotHandler import UserDataSlotHandler
 from .WeatherSlotHandler import WeatherSlotHandler
+
+# 移除旧的处理器导入
+# from .SlotValidationHandler import SlotValidationHandler  # 移除这一行
+
+# 添加新的处理器导入
+from .ContextHistoryRetrievalHandler import ContextHistoryRetrievalHandler
+from .ContextHistorySaveHandler import ContextHistorySaveHandler
+
 from .global_vars import (
     initialize_global_services,
     is_global_initialized,
@@ -32,6 +40,7 @@ from .global_vars import (
 
 __all__ = [
     'SlotHandler',
+    'SlotHandlerInterrupt',
     'BaseSlotExtractionHandler',
     'ContextBuildingSlotHandler',
     'CuisineSlotHandler',
@@ -54,5 +63,10 @@ __all__ = [
     'get_global_config',
     'get_global_template_manager',
     'get_global_intent_classifier',
-    'get_global_tokenizer'
+    'get_global_tokenizer',
+    # 移除旧的处理器
+    # 'SlotValidationHandler',  # 移除这一行
+    # 添加新的处理器
+    'ContextHistoryRetrievalHandler',
+    'ContextHistorySaveHandler'
 ]

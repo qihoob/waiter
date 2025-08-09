@@ -77,21 +77,43 @@ class BaseSlotExtractionHandler(SlotHandler):
 
         return slots
 
-    def _extract_numeric_slots(self, text):
-        """统一提取数字型槽位"""
-        numeric_slots = {}
+    def extract_people_count(text):
+        # 中文数字到阿拉伯数字的映射
+        chinese_to_num = {
+            '一': 1,
+            '二': 2,
+            '两': 2,
+            '三': 3,
+            '四': 4,
+            '五': 5,
+            '六': 6,
+            '七': 7,
+            '八': 8,
+            '九': 9,
+            '十': 10
+        }
 
-        # 提取人数 - 扩展支持多种表达方式
-        MIN_PERSONS = 1
-        MAX_PERSONS = 20
+        # 表示人的关键词
+        people_keywords = ['人', '位', '客']
 
-        if m := re.search(r'(\d+)个?[人位份餐杯瓶盘碗]', text):
-            count = int(m.group(1))
-            if MIN_PERSONS <= count <= MAX_PERSONS:
-                numeric_slots["人数"] = count
+        # 再尝试匹配中文数字 + 关键词的情况
+        for keyword in people_keywords:
+            for chinese_num, num in chinese_to_num.items():
+                if chinese_num + keyword in text:
+                    return num
+
+        # 特殊情况："一个人吃饭" 这种结构
+        pattern = r'([一二两三四五六七八九十]|[\d]+)个(人)'
+        match = re.search(pattern, text)
+        if match:
+            num_str = match.group(1)
+            if num_str.isdigit():
+                return int(num_str)
+            return chinese_to_num.get(num_str, None)
 
         # 提取预算
-        if m := re.search(r'(\d{2,4})元', text):
-            numeric_slots["预算"] = int(m.group(1))
+        budget_match = re.search(r'(\d{2,4})元', text)
+        if budget_match:
+            numeric_slots["预算"] = int(budget_match.group(1))
 
         return numeric_slots

@@ -1,9 +1,10 @@
+# E:\work\waiter\slot\slot_extractor.py
 from fuzzywuzzy import process
 import re
 from prompt_builder.config import SLOT_DICT
 from dict.ltp_tokenizer import get_tokenizer
 
-def extract_slots(text: str, threshold=80,tokenizer=None, is_tokenized=False) -> dict:
+def extract_slots(text: str, threshold=80, tokenizer=None, is_tokenized=False) -> dict:
     """
     从文本中提取槽位信息
 
@@ -55,17 +56,30 @@ def extract_numeric_slots(text):
     """统一提取数字型槽位"""
     numeric_slots = {}
 
-        # 提取人数 - 扩展支持多种表达方式
+    # 提取人数 - 扩展支持多种表达方式
     MIN_PERSONS = 1
     MAX_PERSONS = 20
 
-    if m := re.search(r'(\d+)个?[人位份餐杯瓶盘碗]', text):
-        count = int(m.group(1))
-        if MIN_PERSONS <= count <= MAX_PERSONS:
-            numeric_slots["人数"] = count
+    # 匹配格式如"1份"、"4人"、"4个人"、"4位"等
+    # 增强版正则表达式，处理更多情况
+    person_patterns = [
+        r'(\d+)个?[人位份餐](?:.{0,3}(?:聚餐|用餐|吃饭|订餐))?',  # 匹配"4人聚餐"等
+        r'(?:需要|想要|来|要|点|订)(\d+)个?[人位份餐]',  # 匹配"要4份"等
+        r'(\d+)个?[人位份餐](?:的)',  # 匹配"4人的"
+    ]
+
+    for pattern in person_patterns:
+        person_match = re.search(pattern, text)
+        if person_match:
+            count = int(person_match.group(1))
+            if MIN_PERSONS <= count <= MAX_PERSONS:
+                numeric_slots["人数"] = count
+                break  # 找到第一个匹配就停止
+
     # 提取预算
-    if m := re.search(r'(\d{2,4})元', text):
-        numeric_slots["预算"] = int(m.group(1))
+    budget_match = re.search(r'(\d{2,4})元', text)
+    if budget_match:
+        numeric_slots["预算"] = int(budget_match.group(1))
 
     return numeric_slots
 
@@ -83,11 +97,11 @@ if __name__ == '__main__':
     # 初始化 LTP 分词器
     tokenizer = get_tokenizer()
     # 测试文本
-    text = "我想点两杯咖啡"
+    text = "我想要1份牛排"
     # 提取槽位（自动调用 LTP 分词）
     slots = extract_slots(text, tokenizer=tokenizer)
-    print(slots)
-
+    print(f"输入: {text}")
+    print(f"提取结果: {slots}")
 
     test_cases = [
         "两杯咖啡",
@@ -96,11 +110,16 @@ if __name__ == '__main__':
         "五份披萨",
         "我要六瓶啤酒",
         "需要八盘凉菜",
-        "九碗米饭"
+        "九碗米饭",
+        "我想要1份牛排",
+        "来两份炒饭",
+        "一个人吃饭",
+        "三个人聚餐",
+        "需要5份盒饭"
     ]
 
+    print("\n详细测试结果:")
     for text in test_cases:
-        print(f"输入文本: {text}")
-        print("提取结果:", extract_slots(text))
-        print("-" * 30)
-
+        slots = extract_slots(text)
+        people_count = slots.get("人数", "未提取到")
+        print(f"输入: '{text}' -> 人数: {people_count}")
