@@ -1,3 +1,4 @@
+# E:\work\waiter\slot\LocationSlotHandler.py
 from typing import Dict, Any
 from slot.SlotHandler import SlotHandler
 import requests
@@ -30,22 +31,70 @@ class LocationSlotHandler(SlotHandler):
         self.cache_expire_time = CACHE_EXPIRE_TIME
 
     def handle(self, context: Dict[str, Any]) -> Dict[str, Any]:
-        # 如果上下文中没有location，则根据IP获取位置信息
-        if 'location' not in context or not context['location']:
-            ip = context.get('ip')
-            location_info = self._get_location_by_ip(ip)
+        # 检查是否需要处理位置信息
+        # 只有在有实际点餐意图且包含关键点餐信息时才处理位置
+        if self._should_process_location(context):
+            # 如果上下文中没有location，则根据IP获取位置信息
+            if 'location' not in context or not context['location']:
+                ip = context.get('ip')
+                location_info = self._get_location_by_ip(ip)
 
-            # 将位置信息添加到上下文中
-            context['location_info'] = location_info
-            context['location'] = location_info.get('city', '北京')
+                # 将位置信息添加到上下文中
+                context['location_info'] = location_info
+                context['location'] = location_info.get('city', '北京')
 
-            # 同时将城市信息添加到槽位中
-            if 'slots' not in context:
-                context['slots'] = {}
-            context['slots']['city'] = location_info.get('city')
-            context['slots']['region'] = location_info.get('region')
+                # 同时将城市信息添加到槽位中
+                if 'slots' not in context:
+                    context['slots'] = {}
+                context['slots']['city'] = location_info.get('city')
+                context['slots']['region'] = location_info.get('region')
 
         return super().handle(context)
+
+    def _should_process_location(self, context: Dict[str, Any]) -> bool:
+        """
+        判断是否需要处理位置信息
+        
+        Args:
+            context: 处理上下文
+            
+        Returns:
+            bool: 是否需要处理位置信息
+        """
+        # 检查是否有点餐意图
+        is_order = context.get('is_order', False)
+        if not is_order:
+            return False
+
+        # 检查是否包含关键点餐信息
+        slots = context.get('slots', {})
+
+        # 如果只有饮品信息，不需要处理位置
+        only_drink = (
+                slots.get('饮品') and
+                not slots.get('菜系') and
+                not slots.get('口味') and
+                not slots.get('就餐形式') and
+                not slots.get('健康偏好') and
+                not slots.get('人数') and
+                not slots.get('场景')
+        )
+
+        # 如果只有饮品信息，不处理位置
+        if only_drink:
+            return False
+
+        # 其他情况下，如果有任何关键点餐信息就需要处理位置
+        has_key_info = (
+                slots.get('菜系') or
+                slots.get('口味') or
+                slots.get('就餐形式') or
+                slots.get('健康偏好') or
+                slots.get('人数') or
+                slots.get('场景')
+        )
+
+        return bool(has_key_info)
 
     def _get_location_by_ip(self, ip: str = None) -> Dict[str, Any]:
         """
@@ -150,18 +199,19 @@ class LocationSlotHandler(SlotHandler):
         Returns:
             dict | None: 位置信息，如果未找到或过期返回None
         """
-        if cache_key not in _location_cache:
-            return None
-
         try:
-            cached_data = _location_cache[cache_key]
+            # 使用GlobalCache的get方法而不是直接访问
+            cached_data = _location_cache.get(cache_key)
+            if cached_data is None:
+                return None
+
             location_info = cached_data.get('data')
             timestamp = cached_data.get('timestamp', 0)
 
             # 检查是否过期
             if datetime.now().timestamp() - timestamp > self.cache_expire_time:
                 # 缓存过期，删除该条目
-                del _location_cache[cache_key]
+                _location_cache.delete(cache_key)
                 return None
 
             return location_info
@@ -179,9 +229,125 @@ class LocationSlotHandler(SlotHandler):
             location_data: 位置数据
         """
         try:
-            _location_cache[cache_key] = {
+            _location_cache.set(cache_key, {
                 'data': location_data,
                 'timestamp': datetime.now().timestamp()
-            }
+            }, self.cache_expire_time)
         except Exception as e:
             logger.warning(f"保存位置信息到缓存失败: {e}")
+
+
+# 测试代码
+def test_location_slot_handler():
+    """测试位置槽位处理器"""
+    print("=" * 50)
+    print("测试位置槽位处理器")
+    print("=" * 50)
+
+    # 创建处理器实例
+    handler = LocationSlotHandler()
+
+    # 测试用例
+    test_cases = [
+        {
+            "name": "无点餐意图",
+            "context": {
+                "is_order": False,
+                "cleaned_text": "你好，我想了解一下你们的菜品"
+            }
+        },
+        {
+            "name": "只有饮品信息",
+            "context": {
+                "is_order": True,
+                "cleaned_text": "我要一杯可口可乐",
+                "slots": {
+                    "饮品": "可口可乐"
+                }
+            }
+        },
+        {
+            "name": "有菜系信息",
+            "context": {
+                "is_order": True,
+                "cleaned_text": "我想吃川菜",
+                "slots": {
+                    "菜系": "川菜"
+                }
+            }
+        },
+        {
+            "name": "有口味信息",
+            "context": {
+                "is_order": True,
+                "cleaned_text": "我想要辣一点的菜",
+                "slots": {
+                    "口味": "辣味"
+                }
+            }
+        },
+        {
+            "name": "有场景信息",
+            "context": {
+                "is_order": True,
+                "cleaned_text": "朋友聚会吃饭",
+                "slots": {
+                    "场景": "朋友聚会"
+                }
+            }
+        },
+        {
+            "name": "有饮品和菜系信息",
+            "context": {
+                "is_order": True,
+                "cleaned_text": "我要一杯啤酒和川菜",
+                "slots": {
+                    "饮品": "啤酒",
+                    "菜系": "川菜"
+                }
+            }
+        },
+        {
+            "name": "已有位置信息",
+            "context": {
+                "is_order": True,
+                "location": "上海",
+                "cleaned_text": "我想吃川菜",
+                "slots": {
+                    "菜系": "川菜"
+                }
+            }
+        }
+    ]
+
+    # 执行测试
+    for i, test_case in enumerate(test_cases, 1):
+        print(f"\n测试 {i}: {test_case['name']}")
+        print(f"输入上下文: {test_case['context']}")
+
+        try:
+            # 执行处理
+            result_context = handler.handle(test_case['context'].copy())
+
+            # 输出结果
+            location = result_context.get('location', '未获取到')
+            location_info = result_context.get('location_info', '未获取到')
+            slots = result_context.get('slots', {})
+            city = slots.get('city', '未获取到')
+
+            print(f"位置信息: {location}")
+            print(f"详细位置信息: {location_info}")
+            print(f"城市槽位: {city}")
+
+            # 验证是否应该处理位置
+            should_process = handler._should_process_location(test_case['context'])
+            print(f"是否应该处理位置: {should_process}")
+
+        except Exception as e:
+            print(f"处理出错: {e}")
+            import traceback
+            traceback.print_exc()
+
+
+if __name__ == "__main__":
+    test_location_slot_handler()

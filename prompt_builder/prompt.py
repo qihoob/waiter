@@ -95,7 +95,7 @@ class PromptBuilder:
         self.max_length = getattr(self.config, "max_length", 512)
         self.default_language = getattr(self.config, "default_language", 'zh-CN')
 
-    def build_prompt(self, input_text, user_id=None, location="北京", is_order_placed=False, intent=None, **kwargs):
+    def build_prompt(self, input_text, user_id=None, location="北京", is_order=False, intent=None, **kwargs):
         """构建提示词
 
         Args:
@@ -115,7 +115,7 @@ class PromptBuilder:
                 'input_text': input_text,
                 'user_id': user_id,
                 'location': location,
-                'is_order_placed': is_order_placed,
+                'is_order': is_order,
                 'intent': intent,
                 'kwargs': kwargs
             }
