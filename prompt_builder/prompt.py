@@ -34,7 +34,7 @@ try:
     from slot.CuisineSlotHandler import CuisineSlotHandler
     from slot.TasteSlotHandler import TasteSlotHandler
     from slot.HealthPreferenceSlotHandler import HealthPreferenceSlotHandler
-    from slot.GameRecommendationSlotHandler import GameRecommendationSlotHandler
+    from slot.GameSlotHandler import GameRecommendationSlotHandler
     from slot.TemplateSelectionSlotHandler import TemplateSelectionSlotHandler
     from slot.ContextBuildingSlotHandler import ContextBuildingSlotHandler
     from slot.TemplateRenderingSlotHandler import TemplateRenderingSlotHandler

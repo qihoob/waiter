@@ -7,7 +7,7 @@ from .SlotHandler import SlotHandler, SlotHandlerInterrupt
 from .BaseSlotExtractionHandler import BaseSlotExtractionHandler
 from .ContextBuildingSlotHandler import ContextBuildingSlotHandler
 from .CuisineSlotHandler import CuisineSlotHandler
-from .GameRecommendationSlotHandler import GameRecommendationSlotHandler
+from .GameSlotHandler import GameSlotHandler
 from .HealthPreferenceSlotHandler import HealthPreferenceSlotHandler
 from .LocationSlotHandler import LocationSlotHandler
 from .MissingSlotCompletionHandler import MissingSlotCompletionHandler
@@ -22,10 +22,12 @@ from .TokenizationSlotHandler import TokenizationSlotHandler
 from .UserDataSlotHandler import UserDataSlotHandler
 from .WeatherSlotHandler import WeatherSlotHandler
 
-# 移除旧的处理器导入
-# from .SlotValidationHandler import SlotValidationHandler  # 移除这一行
-
-# 添加新的处理器导入
+# 新增的处理器
+from .AllergenSlotHandler import AllergenSlotHandler
+from .DietaryRestrictionSlotHandler import DietaryRestrictionSlotHandler
+from .DrinkSlotHandler import DrinkSlotHandler
+from .FestivalSlotHandler import FestivalSlotHandler
+from .GameSceneSlotHandler import GameSceneSlotHandler
 from .ContextHistoryRetrievalHandler import ContextHistoryRetrievalHandler
 from .ContextHistorySaveHandler import ContextHistorySaveHandler
 
@@ -44,7 +46,7 @@ __all__ = [
     'BaseSlotExtractionHandler',
     'ContextBuildingSlotHandler',
     'CuisineSlotHandler',
-    'GameRecommendationSlotHandler',
+    'GameSlotHandler',
     'HealthPreferenceSlotHandler',
     'LocationSlotHandler',
     'MissingSlotCompletionHandler',
@@ -58,15 +60,20 @@ __all__ = [
     'TokenizationSlotHandler',
     'UserDataSlotHandler',
     'WeatherSlotHandler',
+
+    # 新增的处理器
+    'AllergenSlotHandler',
+    'DietaryRestrictionSlotHandler',
+    'DrinkSlotHandler',
+    'FestivalSlotHandler',
+    'GameSceneSlotHandler',
+    'ContextHistoryRetrievalHandler',
+    'ContextHistorySaveHandler',
+
     'initialize_global_services',
     'is_global_initialized',
     'get_global_config',
     'get_global_template_manager',
     'get_global_intent_classifier',
-    'get_global_tokenizer',
-    # 移除旧的处理器
-    # 'SlotValidationHandler',  # 移除这一行
-    # 添加新的处理器
-    'ContextHistoryRetrievalHandler',
-    'ContextHistorySaveHandler'
+    'get_global_tokenizer'
 ]

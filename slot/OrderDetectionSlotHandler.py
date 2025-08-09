@@ -1,120 +1,154 @@
-from typing import Dict, Any
+# E:\work\waiter\slot\OrderDetectionSlotHandler.py
+"""
+订单检测槽位处理器
+"""
+
+from typing import Dict, Any, List
 from slot.SlotHandler import SlotHandler
-import logging
 from prompt_builder.config import ORDER_KEYWORDS
-from memory.local_cache import GlobalCache
-import time
+import re
 
-# 配置日志记录
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-# 本地缓存字典
-_local_cache =  GlobalCache.get_instance()
-# 缓存过期时间（秒）
-CACHE_EXPIRE_TIME = 300  # 5分钟
 
 class OrderDetectionSlotHandler(SlotHandler):
     """订单检测槽位处理器"""
 
-    def __init__(self,  next_handler=None):
-        """
-        初始化订单检测处理器
-        
-        Args:
-            cache_expire_time: 缓存过期时间（秒），默认5分钟
-            next_handler: 下一个处理器
-        """
+    def __init__(self, next_handler=None):
         super().__init__(next_handler)
-        self.cache_expire_time = CACHE_EXPIRE_TIME
+        # 从ORDER_KEYWORDS中获取订单关键词
+        self.order_keywords = ORDER_KEYWORDS
+        # 按长度排序，优先匹配长词汇
+        self.order_keywords.sort(key=len, reverse=True)
 
     def handle(self, context: Dict[str, Any]) -> Dict[str, Any]:
-        user_id = context.get('user_id')
-        session_id = context.get('session_id')
-
-        # 构建缓存键
-        cache_key = f"user_order_status:{user_id}:{session_id}" if user_id and session_id else None
-
-        # 1. 优先从本地缓存中获取订单状态
-        is_order = self._get_order_status_from_cache(cache_key)
-
-        if is_order is not None:
-            # 如果缓存中有订单状态，直接使用缓存值
-            context['is_order'] = is_order
-            logger.info(f"从本地缓存获取订单状态: {is_order}")
-        else:
-            # 2. 如果没有缓存，从槽位中检测是否有下单意图
-            context['is_order'] = (context.get('is_order', False) or
-                                          self._detect_order_intent(context['tokenized_text']))
-
-            # 3. 如果检测到下单意图，保存到本地缓存
-            if context['is_order'] and cache_key:
-                self._save_order_status_to_cache(cache_key, context['is_order'])
-                logger.info(f"检测到下单意图，已保存到本地缓存: {context['is_order']}")
-
+        # 获取需要处理的文本
+        text_to_process = self._get_text_to_process(context)
+        
+        if text_to_process:
+            # 检测订单意图
+            is_order_intent = self._detect_order_intent(text_to_process)
+            
+            # 将订单意图添加到context中
+            context['is_order'] = is_order_intent
+            
+            # 如果检测到订单意图，也可以在slots中添加相关信息
+            if is_order_intent:
+                slots = context.setdefault('slots', {})
+                slots['订单状态'] = "下单意图"
+        
         return super().handle(context)
 
-    def _get_order_status_from_cache(self, cache_key: str) -> bool | None:
+    def _get_text_to_process(self, context: Dict[str, Any]) -> str:
         """
-        从本地缓存中获取订单状态
+        获取需要处理的文本
         
         Args:
-            cache_key: 缓存键
+            context: 处理上下文
             
         Returns:
-            bool | None: 订单状态，如果未找到或过期返回None
+            需要处理的文本
         """
-        if not cache_key or cache_key not in _local_cache:
-            return None
+        # 按优先级获取文本
+        text_sources = [
+            context.get('cleaned_text'),
+            context.get('input_text'),
+            context.get('tokenized_text')
+        ]
+        
+        for text in text_sources:
+            if text:
+                return text
+                
+        return ""
 
-        try:
-            cached_data = _local_cache[cache_key]
-            cached_value = cached_data.get('value')
-            timestamp = cached_data.get('timestamp', 0)
-
-            # 检查是否过期
-            if time.time() - timestamp > self.cache_expire_time:
-                # 缓存过期，删除该条目
-                del _local_cache[cache_key]
-                return None
-
-            return cached_value
-        except Exception as e:
-            logger.warning(f"从本地缓存获取订单状态失败: {e}")
-
-        return None
-
-    def _save_order_status_to_cache(self, cache_key: str, is_order: bool):
+    def _detect_order_intent(self, text: str) -> bool:
         """
-        将订单状态保存到本地缓存
+        从文本中检测订单意图
         
         Args:
-            cache_key: 缓存键
-            is_order: 订单状态
-        """
-        if not cache_key:
-            return
-
-        try:
-            _local_cache[cache_key] = {
-                'value': is_order,
-                'timestamp': time.time()
-            }
-        except Exception as e:
-            logger.warning(f"保存订单状态到本地缓存失败: {e}")
-
-    def _detect_order_intent(self, tokenized_text):
-        """
-        检测用户是否有下单意图（使用已分词文本）
-        
-        Args:
-            tokenized_text: 已分词的文本
-
+            text: 输入文本
+            
         Returns:
-            bool: 是否有下单意图
+            是否检测到订单意图
         """
-        if not tokenized_text:
-            return False
+        # 预处理文本：转为小写，去除多余空格
+        processed_text = text.lower().strip()
+        
+        # 查找匹配的订单关键词
+        for keyword in self.order_keywords:
+            # 将关键词也转为小写进行匹配
+            keyword_lower = keyword.lower()
+            
+            # 精确匹配整个词
+            if keyword_lower in processed_text:
+                return True  # 检测到订单意图
+                
+        return False
 
-        # 使用可配置的下单意图词典
-        return any(keyword in tokenized_text for keyword in ORDER_KEYWORDS)
+
+# 测试代码
+def test_order_detection_slot_handler():
+    """测试订单检测槽位处理器"""
+    print("=" * 50)
+    print("测试订单检测槽位处理器")
+    print("=" * 50)
+    
+    # 创建处理器实例
+    handler = OrderDetectionSlotHandler()
+    
+    # 测试用例
+    test_cases = [
+        {
+            "name": "识别点菜意图",
+            "context": {
+                "cleaned_text": "我想点菜，来一份宫保鸡丁"
+            }
+        },
+        {
+            "name": "识别订位意图",
+            "context": {
+                "cleaned_text": "我要订位，明天晚上六点"
+            }
+        },
+        {
+            "name": "识别已下单意图",
+            "context": {
+                "cleaned_text": "我已经订好了，明天来取"
+            }
+        },
+        {
+            "name": "无订单意图",
+            "context": {
+                "cleaned_text": "我想了解一下你们的菜品"
+            }
+        },
+        {
+            "name": "复杂订单意图",
+            "context": {
+                "cleaned_text": "我要下单，准备点菜了"
+            }
+        }
+    ]
+    
+    # 执行测试
+    for i, test_case in enumerate(test_cases, 1):
+        print(f"\n测试 {i}: {test_case['name']}")
+        print(f"输入文本: {test_case['context']['cleaned_text']}")
+        
+        try:
+            # 执行处理
+            result_context = handler.handle(test_case['context'].copy())
+            
+            # 输出结果
+            is_order = result_context.get('is_order', False)
+            print(f"检测到订单意图: {is_order}")
+            
+            slots = result_context.get('slots', {})
+            order_status = slots.get('订单状态', '未下单')
+            print(f"订单状态: {order_status}")
+            
+        except Exception as e:
+            print(f"处理出错: {e}")
+
+
+if __name__ == "__main__":
+    test_order_detection_slot_handler()
