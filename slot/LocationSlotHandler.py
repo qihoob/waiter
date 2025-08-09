@@ -16,6 +16,13 @@ logger = logging.getLogger(__name__)
 _location_cache =  GlobalCache.get_instance()
 CACHE_EXPIRE_TIME = 1800  # 30分钟缓存
 
+# 定义西餐菜系列表
+WESTERN_CUISINES = {
+    "西餐", "意大利菜", "法餐", "法国菜", "意餐", "意大利料理",
+    "西式料理", "欧餐", "欧式料理", "牛排", "西式牛排", "意大利面",
+    "披萨", "西式快餐", "美式快餐", "汉堡", "炸鸡", "西式简餐"
+}
+
 class LocationSlotHandler(SlotHandler):
     """位置信息槽位处理器"""
 
@@ -54,10 +61,10 @@ class LocationSlotHandler(SlotHandler):
     def _should_process_location(self, context: Dict[str, Any]) -> bool:
         """
         判断是否需要处理位置信息
-        
+
         Args:
             context: 处理上下文
-            
+
         Returns:
             bool: 是否需要处理位置信息
         """
@@ -69,7 +76,11 @@ class LocationSlotHandler(SlotHandler):
         # 检查是否包含关键点餐信息
         slots = context.get('slots', {})
 
-        # 如果只有饮品信息，不需要处理位置
+        # 检查是否为西餐菜系
+        cuisine = slots.get('菜系', '')
+        is_western_cuisine = self._is_western_cuisine(cuisine)
+
+        # 如果只有饮品信息且不是西餐，不需要处理位置
         only_drink = (
                 slots.get('饮品') and
                 not slots.get('菜系') and
@@ -80,9 +91,13 @@ class LocationSlotHandler(SlotHandler):
                 not slots.get('场景')
         )
 
-        # 如果只有饮品信息，不处理位置
-        if only_drink:
+        # 如果只有饮品信息且不是西餐，不处理位置
+        if only_drink or  is_western_cuisine:
             return False
+
+        # 如果是西餐，即使只有饮品也需要处理位置（西餐厅通常对位置要求较高）
+        if only_drink and is_western_cuisine:
+            return True
 
         # 其他情况下，如果有任何关键点餐信息就需要处理位置
         has_key_info = (
@@ -95,6 +110,26 @@ class LocationSlotHandler(SlotHandler):
         )
 
         return bool(has_key_info)
+
+    def _is_western_cuisine(self, cuisine: str) -> bool:
+        """
+        判断是否为西餐菜系
+
+        Args:
+            cuisine: 菜系名称
+
+        Returns:
+            bool: 是否为西餐菜系
+        """
+        if not cuisine:
+            return False
+
+        # 检查是否在西餐菜系列表中
+        for western_cuisine in WESTERN_CUISINES:
+            if western_cuisine in cuisine or cuisine in western_cuisine:
+                return True
+
+        return False
 
     def _get_location_by_ip(self, ip: str = None) -> Dict[str, Any]:
         """
@@ -267,12 +302,33 @@ def test_location_slot_handler():
             }
         },
         {
+            "name": "西餐只有饮品信息",
+            "context": {
+                "is_order": True,
+                "cleaned_text": "我要一杯红酒",
+                "slots": {
+                    "饮品": "红酒",
+                    "菜系": "西餐"
+                }
+            }
+        },
+        {
             "name": "有菜系信息",
             "context": {
                 "is_order": True,
                 "cleaned_text": "我想吃川菜",
                 "slots": {
                     "菜系": "川菜"
+                }
+            }
+        },
+        {
+            "name": "有西餐菜系信息",
+            "context": {
+                "is_order": True,
+                "cleaned_text": "我想吃牛排",
+                "slots": {
+                    "菜系": "牛排"
                 }
             }
         },
@@ -304,6 +360,17 @@ def test_location_slot_handler():
                 "slots": {
                     "饮品": "啤酒",
                     "菜系": "川菜"
+                }
+            }
+        },
+        {
+            "name": "有西式饮品和菜系信息",
+            "context": {
+                "is_order": True,
+                "cleaned_text": "我要一杯咖啡和牛排",
+                "slots": {
+                    "饮品": "咖啡",
+                    "菜系": "牛排"
                 }
             }
         },
@@ -343,11 +410,50 @@ def test_location_slot_handler():
             should_process = handler._should_process_location(test_case['context'])
             print(f"是否应该处理位置: {should_process}")
 
+            # 检查是否为西餐
+            cuisine = test_case['context'].get('slots', {}).get('菜系', '')
+            is_western = handler._is_western_cuisine(cuisine)
+            if cuisine:
+                print(f"菜系: {cuisine}, 是否为西餐: {is_western}")
+
         except Exception as e:
             print(f"处理出错: {e}")
             import traceback
             traceback.print_exc()
 
 
+def test_western_cuisine_detection():
+    """测试西餐菜系检测功能"""
+    print("\n" + "=" * 50)
+    print("测试西餐菜系检测功能")
+    print("=" * 50)
+
+    handler = LocationSlotHandler()
+
+    # 测试西餐菜系
+    western_cuisines = [
+        "西餐", "意大利菜", "法餐", "法国菜", "意餐", "意大利料理",
+        "西式料理", "欧餐", "欧式料理", "牛排", "西式牛排", "意大利面",
+        "披萨", "西式快餐", "美式快餐", "汉堡", "炸鸡", "西式简餐"
+    ]
+
+    print("西餐菜系检测:")
+    for cuisine in western_cuisines:
+        is_western = handler._is_western_cuisine(cuisine)
+        print(f"  {cuisine}: {is_western}")
+
+    # 测试非西餐菜系
+    non_western_cuisines = [
+        "川菜", "粤菜", "湘菜", "鲁菜", "苏菜", "浙菜", "闽菜", "徽菜",
+        "东北菜", "西北菜", "云南菜", "贵州菜", "客家菜", "台湾菜"
+    ]
+
+    print("\n非西餐菜系检测:")
+    for cuisine in non_western_cuisines:
+        is_western = handler._is_western_cuisine(cuisine)
+        print(f"  {cuisine}: {is_western}")
+
+
 if __name__ == "__main__":
     test_location_slot_handler()
+    test_western_cuisine_detection()

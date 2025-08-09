@@ -25,23 +25,22 @@ class ContextHistoryRetrievalHandler(SlotHandler):
     def handle(self, context: Dict[str, Any]) -> Dict[str, Any]:
         try:
             user_id = context.get('user_id')
-            session_id = context.get('session_id')
 
             # 尝试从历史中恢复上下文
-            if user_id and session_id:
-                historical_context = self._get_context_from_history(user_id, session_id)
+            if user_id:
+                historical_context = self._get_context_from_history(user_id)
                 if historical_context:
                     # 合并历史上下文和当前上下文
                     merged_context = self._merge_context(historical_context, context)
                     context.update(merged_context)
-                    logger.info(f"已从历史恢复上下文，用户ID: {user_id}, 会话ID: {session_id}")
+                    logger.info(f"已从历史恢复上下文，用户ID: {user_id}")
 
         except Exception as e:
             logger.error(f"检索上下文历史时出错: {e}")
 
         return super().handle(context)
 
-    def _get_context_from_history(self, user_id: str, session_id: str) -> Dict[str, Any]:
+    def _get_context_from_history(self, user_id: str) -> Dict[str, Any]:
         """
         从历史记录中获取上下文
 
@@ -53,7 +52,7 @@ class ContextHistoryRetrievalHandler(SlotHandler):
             Dict[str, Any]: 历史上下文，如果不存在或过期则返回空字典
         """
         try:
-            cache_key = f"context_history:{user_id}:{session_id}"
+            cache_key = f"context_history:{user_id}"
             cached_data = self.cache.get(cache_key)
 
             if cached_data:

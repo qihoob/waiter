@@ -140,7 +140,7 @@ class PromptBuilder:
             except SlotHandlerInterrupt as e:
                 # 处理链被中断，返回中断时的上下文
                 logger.info("处理链被中断，等待用户输入")
-                return self._handle_chain_interruption(e.context)
+                return self._handle_chain_interruption(context)
 
         except Exception as e:
             logger.error(f"构建提示词时发生错误: {e}", exc_info=True)
@@ -154,8 +154,8 @@ class PromptBuilder:
             SlotHandler: 构建好的处理链起始节点
         """
         # 第一阶段：文本预处理
-        chain = TextCleaningSlotHandler()  # 文本清洗
-        chain = chain.set_next(TokenizationSlotHandler())  # 文本分词
+        text_cleaning_chain = TextCleaningSlotHandler()  # 文本清洗
+        chain = text_cleaning_chain.set_next(TokenizationSlotHandler())  # 文本分词
 
         # 第二阶段：基础信息提取
         chain = chain.set_next(BaseSlotExtractionHandler())  # 基础槽位提取
@@ -164,10 +164,7 @@ class PromptBuilder:
         chain = chain.set_next(WeatherSlotHandler())  # 天气信息提取
         chain = chain.set_next(UserDataSlotHandler())  # 用户数据提取
 
-        # 第三阶段：场景和人数信息提取
-        chain = chain.set_next(SceneSlotHandler())  # 场景信息提取
-        chain = chain.set_next(GameSceneSlotHandler())  # 游戏场景信息提取
-        chain = chain.set_next(PeopleCountSlotHandler())  # 人数信息提取
+
 
         # 第四阶段：餐饮相关信息提取
         chain = chain.set_next(DishBasedCuisineClassifier())  # 基于菜品的菜系分类
@@ -177,6 +174,11 @@ class PromptBuilder:
         chain = chain.set_next(DietaryRestrictionSlotHandler())  # 忌口信息提取
         chain = chain.set_next(AllergenSlotHandler())  # 过敏原信息提取
         chain = chain.set_next(DrinkSlotHandler())  # 饮品信息提取
+
+        # 第三阶段：场景和人数信息提取
+        chain = chain.set_next(SceneSlotHandler())  # 场景信息提取
+        chain = chain.set_next(GameSceneSlotHandler())  # 游戏场景信息提取
+        chain = chain.set_next(PeopleCountSlotHandler())  # 人数信息提取
 
         # 第五阶段：其他信息提取
         chain = chain.set_next(FestivalSlotHandler())  # 节日信息提取
@@ -193,7 +195,7 @@ class PromptBuilder:
         chain = chain.set_next(TemplateRenderingSlotHandler())  # 模板渲染
 
         # 返回链的起始节点
-        return chain.root if hasattr(chain, 'root') else chain
+        return text_cleaning_chain
 
     def _handle_chain_interruption(self, context: dict) -> str:
         """
