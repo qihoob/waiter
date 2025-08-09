@@ -6,7 +6,7 @@ Slot模块初始化文件
 from .SlotHandler import SlotHandler, SlotHandlerInterrupt
 from .BaseSlotExtractionHandler import BaseSlotExtractionHandler
 from .ContextBuildingSlotHandler import ContextBuildingSlotHandler
-from .CuisineSlotHandler import CuisineSlotHandler
+from .CuisineFlavorHandler import CuisineFlavorHandler
 from .GameSlotHandler import GameSlotHandler
 from .HealthPreferenceSlotHandler import HealthPreferenceSlotHandler
 from .LocationSlotHandler import LocationSlotHandler
@@ -45,7 +45,7 @@ __all__ = [
     'SlotHandlerInterrupt',
     'BaseSlotExtractionHandler',
     'ContextBuildingSlotHandler',
-    'CuisineSlotHandler',
+    'CuisineFlavorHandler',
     'GameSlotHandler',
     'HealthPreferenceSlotHandler',
     'LocationSlotHandler',
