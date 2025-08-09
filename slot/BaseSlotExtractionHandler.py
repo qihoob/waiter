@@ -77,7 +77,33 @@ class BaseSlotExtractionHandler(SlotHandler):
 
         return slots
 
+    def _extract_numeric_slots(self, text):
+        """统一提取数字型槽位"""
+        numeric_slots = {}
+
+        # 提取人数 - 扩展支持多种表达方式
+        people_count = self.extract_people_count(text)
+        if people_count is not None:
+            numeric_slots["人数"] = people_count
+
+        # 提取预算
+        budget_match = re.search(r'(\d{2,4})元', text)
+        if budget_match:
+            numeric_slots["预算"] = int(budget_match.group(1))
+
+        return numeric_slots
+
+    @staticmethod
     def extract_people_count(text):
+        """
+        从文本中提取人数
+
+        Args:
+            text: 输入文本
+
+        Returns:
+            int or None: 提取到的人数，如果未找到则返回None
+        """
         # 中文数字到阿拉伯数字的映射
         chinese_to_num = {
             '一': 1,
@@ -96,13 +122,19 @@ class BaseSlotExtractionHandler(SlotHandler):
         # 表示人的关键词
         people_keywords = ['人', '位', '客']
 
-        # 再尝试匹配中文数字 + 关键词的情况
+        # 1. 先尝试匹配阿拉伯数字 + 关键词的情况
+        pattern = r'(\d+)([人位客])'
+        match = re.search(pattern, text)
+        if match:
+            return int(match.group(1))
+
+        # 2. 再尝试匹配中文数字 + 关键词的情况
         for keyword in people_keywords:
             for chinese_num, num in chinese_to_num.items():
                 if chinese_num + keyword in text:
                     return num
 
-        # 特殊情况："一个人吃饭" 这种结构
+        # 3. 特殊情况："一个人吃饭" 这种结构
         pattern = r'([一二两三四五六七八九十]|[\d]+)个(人)'
         match = re.search(pattern, text)
         if match:
@@ -111,9 +143,13 @@ class BaseSlotExtractionHandler(SlotHandler):
                 return int(num_str)
             return chinese_to_num.get(num_str, None)
 
-        # 提取预算
-        budget_match = re.search(r'(\d{2,4})元', text)
-        if budget_match:
-            numeric_slots["预算"] = int(budget_match.group(1))
+        # 4. 匹配"份"的情况，如"1份牛排"
+        pattern = r'(\d+)个?[份餐]'
+        match = re.search(pattern, text)
+        if match:
+            count = int(match.group(1))
+            # 对于"份"的情况，我们假设通常不会超过20份
+            if 1 <= count <= 20:
+                return count
 
-        return numeric_slots
+        return None

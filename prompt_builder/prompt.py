@@ -141,18 +141,11 @@ class PromptBuilder:
             # 处理请求并获取结果
             try:
                 result = slot_handler_chain.handle(context)
-                return result
+                return result["result"]
             except SlotHandlerInterrupt as e:
             # 处理链被中断，返回中断时的上下文
                 logger.info("处理链被中断，等待用户输入")
                 return e.result
-            except Exception as e:
-                logger.error(f"处理链执行出错: {e}")
-                # 返回错误上下文
-                error_context = context.copy()
-                error_context['error'] = str(e)
-                error_context['result'] = "抱歉，处理过程中出现错误。"
-                return error_context
             return result_context['result']
 
         except Exception as e:

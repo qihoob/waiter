@@ -68,7 +68,6 @@ class ContextBuildingSlotHandler(SlotHandler):
                 # 历史数据
                 "conversation_history": "",  # 如果有对话历史可传入
                 "order_history": "\n".join(order_history) if order_history else "无",
-                "is_order_placed": is_order,
 
                 # 地方特色菜品
                 "local_dishes": self._get_local_dishes(location, slots.get("菜系")),

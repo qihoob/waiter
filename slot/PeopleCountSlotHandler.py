@@ -1,10 +1,11 @@
+# E:\work\waiter\slot\PeopleCountSlotHandler.py
 from typing import Dict, Any
 from slot.SlotHandler import SlotHandler
 import re
 
 class PeopleCountSlotHandler(SlotHandler):
     """人数槽位处理器"""
-    def __init__(self,next_handler=None):
+    def __init__(self, next_handler=None):
         super().__init__(next_handler)
         self.chinese_to_num = {
             '一': 1,
@@ -22,15 +23,24 @@ class PeopleCountSlotHandler(SlotHandler):
 
         # 表示人的关键词
         self.people_keywords = ['人', '位', '客']
+
     def handle(self, context: Dict[str, Any]) -> Dict[str, Any]:
         slots = context.get('slots', {})
         people_count = slots.get('人数')
         # 处理人数相关的逻辑
-        if people_count:
-            # 可以根据人数进行特殊处理
-            pass
+        if people_count is None:
+            # 检查 input_text 是否存在再尝试提取
+            if 'input_text' in context:
+                people_count = self.extract_people_count(context['input_text'])
+        if people_count is None:
+            # 检查 cleaned_text 是否存在再尝试提取
+            if 'cleaned_text' in context:
+                people_count = self.extract_people_count(context['cleaned_text'])
+        if people_count is not None:
+            slots['人数'] = people_count
         return super().handle(context)
-    def extract_people_count(self,text):
+
+    def extract_people_count(self, text):
         # 先尝试匹配阿拉伯数字 + 关键词的情况
         pattern = r'(\d+)([人位客])'
         match = re.search(pattern, text)
@@ -51,5 +61,14 @@ class PeopleCountSlotHandler(SlotHandler):
             if num_str.isdigit():
                 return int(num_str)
             return self.chinese_to_num.get(num_str, None)
+
+        # 匹配"份"的情况，如"1份牛排"
+        pattern = r'(\d+)个?[份餐杯]'
+        match = re.search(pattern, text)
+        if match:
+            count = int(match.group(1))
+            # 对于"份"的情况，我们假设通常不会超过20份
+            if 1 <= count <= 20:
+                return count
 
         return None
