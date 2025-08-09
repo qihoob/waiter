@@ -283,3 +283,86 @@ class DishBasedCuisineClassifier(SlotHandler):
         ]
 
         return sorted_cuisines[:top_n]
+def test_dish_based_cuisine_classifier():
+    """测试 DishBasedCuisineClassifier 类"""
+# 创建分类器实例
+classifier = DishBasedCuisineClassifier()
+
+print("=== 测试 DishBasedCuisineClassifier ===")
+
+# 测试1: 通过特色菜识别菜系
+print("\n测试1: 通过特色菜识别菜系")
+test_cases = [
+    "我想吃麻婆豆腐和水煮鱼",  # 应该识别为川菜
+    "来一份宫保鸡丁和夫妻肺片",  # 应该识别为川菜
+    "我想吃剁椒鱼头和小炒黄牛肉",  # 应该识别为湘菜
+    "来点白切鸡和烧鹅",  # 应该识别为粤菜
+    "我想吃锅包肉和小鸡炖蘑菇",  # 应该识别为东北菜
+    "来份寿司和刺身",  # 应该识别为日料
+]
+
+for text in test_cases:
+    cuisine = classifier._extract_cuisine_from_text(text)
+    print(f"输入: '{text}' -> 识别菜系: {cuisine}")
+
+# 测试2: 通过同义词识别菜系
+print("\n测试2: 通过同义词识别菜系")
+synonym_cases = [
+    "想吃四川菜",  # 川菜的同义词
+    "来点湖南菜",  # 湘菜的同义词
+    "吃点广东菜",  # 粤菜的同义词
+    "整点日本料理",  # 日料的同义词
+]
+
+for text in synonym_cases:
+    cuisine = classifier._extract_cuisine_from_text(text)
+    print(f"输入: '{text}' -> 识别菜系: {cuisine}")
+
+# 测试3: 通过口味特点识别菜系
+print("\n测试3: 通过口味特点识别菜系")
+taste_cases = [
+    "喜欢麻辣口味的菜",  # 川菜特点
+    "偏爱香辣和酸辣",  # 湘菜特点
+    "喜欢清淡鲜甜的",  # 粤菜特点
+    "喜欢咸鲜和酱香",  # 东北菜特点
+    "喜欢鲜咸和清淡",  # 日料特点
+]
+
+for text in taste_cases:
+    cuisine = classifier._extract_cuisine_from_text(text)
+    print(f"输入: '{text}' -> 识别菜系: {cuisine}")
+
+# 测试4: 测试 infer_cuisine 方法
+print("\n测试4: 测试 infer_cuisine 方法")
+feature_tests = [
+    ["麻婆豆腐", "麻辣", "鱼香味"],  # 应该返回川菜
+    ["浓油赤酱", "腌笃鲜", "咸中带甜"],  # 应该返回本帮菜
+    ["湖南菜", "剁椒胖头鱼", "酸辣味"],  # 应该返回湘菜
+    ["番茄炒蛋", "清淡鲜爽"],  # 可能返回粤菜、本帮菜等
+]
+
+for features in feature_tests:
+    result = classifier.infer_cuisine(features)
+    print(f"输入特征: {features} -> 推断结果: {result}")
+
+# 测试5: 测试 handle 方法
+print("\n测试5: 测试 handle 方法")
+context_tests = [
+    {"input_text": "我想吃麻婆豆腐"},
+    {"input_text": "来点白切鸡"},
+    {"slots": {"菜系": "川菜"}},  # 已有菜系信息
+    {"input_text": "吃点不辣的"},  # 不包含菜系信息
+]
+
+for i, context in enumerate(context_tests):
+    print(f"\n测试5.{i+1}: 输入上下文: {context}")
+    # 创建处理器链
+    handler = DishBasedCuisineClassifier()
+    try:
+        result_context = handler.handle(context)
+        print(f"输出上下文: {result_context.get('slots', {})}")
+    except Exception as e:
+        print(f"处理出错: {e}")
+
+if __name__ == "__main__":
+    test_dish_based_cuisine_classifier()
