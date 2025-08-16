@@ -1,23 +1,4 @@
 # intent/trainer.py
-from typing import List, Optional
-
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
-from sklearn.pipeline import Pipeline
-import json
-from collections import defaultdict
-import os
-import logging
-import joblib
-
-# 导入自定义分词器
-from dict.ltp_tokenizer import  get_tokenizer
-
-# 配置日志记录
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-
 class IntentTrainer:
     """
     意图分类器训练模块
@@ -30,8 +11,8 @@ class IntentTrainer:
 
     # 默认意图列表
     DEFAULT_INTENTS = [
-        "order", "game_recommendation", "healthy_diet",
-        "festival", "vegetarian", "child_or_elderly",
+        "order_food", "recommend_game", "recommend_dish",
+        "festival_recommend", "query_nutrition", "child_or_elderly",
         "weight_loss", "intermittent_fasting", "seasonal_food",
         "fitness_nutrition", "holiday_event", "group_gathering",
         "takeaway_service", "allergy_safe", "nutritional_info"
