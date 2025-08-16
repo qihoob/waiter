@@ -49,7 +49,6 @@
     {"text": "川菜有素版吗？", "intent": "query_nutrition"},
     {"text": "不含动物制品的推荐", "intent": "query_nutrition"},
     {"text": "粤菜有素春卷吗？", "intent": "query_nutrition"},
-    {"text": "粤菜有素春卷吗？", "intent": "query_nutrition"},
     {"text": "寿司拼盘有素的吗？", "intent": "query_nutrition"},
     {"text": "素食汉堡有吗？", "intent": "query_nutrition"},
     {"text": "有没有意面沙拉组合？", "intent": "query_nutrition"},

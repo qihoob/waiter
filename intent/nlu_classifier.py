@@ -1,7 +1,6 @@
-# collector/nlu/intent_classifier.py
-
 class IntentClassifier:
     def __init__(self):
+        # 统一意图命名规范
         self.intent_rules = {
             "order_food": [
                 "下单", "点菜", "订位", "订桌", "订好了", "订过",
@@ -20,9 +19,6 @@ class IntentClassifier:
             ],
             "query_nutrition": [
                 "素食", "不吃肉", "不吃荤", "素斋", "纯素"
-            ],
-            "order_drink": [
-                "冷", "热", "下雨", "刮风", "天太热", "天太冷"
             ],
             "child_or_elderly": [
                 "带小孩", "老人", "儿童", "宝宝", "长者"
@@ -71,10 +67,10 @@ class IntentClassifier:
                     scores["weight_loss"] += 3
                 elif health_pref == "无糖":
                     scores["intermittent_fasting"] += 3
-            if "节日" in slots:
+            if "特殊节日" in slots:
                 scores["festival_recommend"] += 2
-            if "天气" in slots:
-                weather = slots["天气"]
+            if "天气状态" in slots:
+                weather = slots["天气状态"]
                 if weather in ["寒冷", "阴雨"]:
                     scores["cold_weather_meal_recommendation"] += 2
                 elif weather in ["炎热", "晴朗"]:
@@ -89,9 +85,19 @@ class IntentClassifier:
             "order_food"
         ]
 
-        best_intent = max(scores, key=scores.get)
-        tied_intents = [intent for intent, score in scores.items() if score == scores[best_intent]]
+        # 计算最高分意图
+        if not scores:
+            return "order_food"  # 默认意图
 
+        best_intent = max(scores, key=scores.get)
+        highest_score = scores[best_intent]
+
+        # 如果最高分是0，返回默认意图
+        if highest_score == 0:
+            return "order_food"
+
+        # 若多个意图得分相同，按优先级排序
+        tied_intents = [intent for intent, score in scores.items() if score == highest_score]
         if len(tied_intents) > 1:
             for intent in priority_order:
                 if intent in tied_intents:

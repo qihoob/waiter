@@ -1,4 +1,16 @@
-# intent/trainer.py
+import os
+import json
+import logging
+from typing import Optional, List
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import Pipeline
+from dict.ltp_tokenizer import get_tokenizer
+
+# 配置日志
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 class IntentTrainer:
     """
     意图分类器训练模块
@@ -9,7 +21,7 @@ class IntentTrainer:
     - 支持模型持久化存储
     """
 
-    # 默认意图列表
+    # 统一意图列表命名
     DEFAULT_INTENTS = [
         "order_food", "recommend_game", "recommend_dish",
         "festival_recommend", "query_nutrition", "child_or_elderly",
@@ -30,7 +42,7 @@ class IntentTrainer:
         """构建机器学习管道"""
         return Pipeline([
             ('tfidf', TfidfVectorizer()),
-            ('clf', LogisticRegression())
+            ('clf', LogisticRegression(random_state=42, max_iter=1000))
         ])
 
     def _get_data_path(self):
@@ -43,81 +55,79 @@ class IntentTrainer:
         current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # 上一级目录
         return os.path.join(current_dir, "model")
 
-    def _chinese_tokenize(self, text: str) -> str:
-        """
-        使用LTP进行中文分词处理
-
-        Args:
-            text: 输入文本
-
-        Returns:
-            str: 分词后的字符串
-        """
-        return self.tokenizer.tokenize(text)
-
-    def _batch_tokenize(self, texts: List[str]) -> List[str]:
-        """
-        批量处理文本分词（显著提升训练效率）
-
-        Args:
-            texts: 文本列表
-
-        Returns:
-            list: 分词后的文本列表
-        """
-        if not texts:
-            return []
-
-        try:
-            # 执行批量分词
-            return self.tokenizer.batch_tokenize(texts)
-        except Exception as e:
-            logger.error(f"批量分词出错: {e}", exc_info=True)
-            # 出错时退化为逐条处理
-            return [self._chinese_tokenize(text) for text in texts]
-
-    def train(self, model_filename: Optional[str] = None) -> str:
-        """
-        训练意图分类模型
-
-        Args:
-            model_filename: 可选，自定义模型文件名
-
-        Returns:
-            str: 模型保存路径
-        """
-        model_filename = model_filename or self.DEFAULT_MODEL_FILENAME
-
+    def load_training_data(self):
+        """加载训练数据"""
         data_path = self._get_data_path()
-        model_dir = self._get_model_dir()
+        
+        if not os.path.exists(data_path):
+            raise FileNotFoundError(f"训练数据文件不存在: {data_path}")
+            
+        with open(data_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            
+        texts = [item['text'] for item in data]
+        intents = [item['intent'] for item in data]
+        
+        return texts, intents
 
+    def train(self, texts: Optional[List[str]] = None, intents: Optional[List[str]] = None):
+        """训练模型"""
         try:
-            with open(data_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-        except FileNotFoundError:
-            raise FileNotFoundError(f"训练数据文件未找到: {data_path}")
-        except json.JSONDecodeError:
-            raise ValueError(f"JSON 解析失败: {data_path}")
+            # 如果没有提供训练数据，则从文件加载
+            if texts is None or intents is None:
+                texts, intents = self.load_training_data()
+                
+            # 分词处理
+            tokenized_texts = [' '.join(self.tokenizer.tokenize(text)) for text in texts]
+            
+            # 训练模型
+            self.model.fit(tokenized_texts, intents)
+            logger.info("意图分类模型训练完成")
+            
+            # 保存模型
+            self.save_model()
+            
+        except Exception as e:
+            logger.error(f"模型训练失败: {e}")
+            raise
 
-        texts = [item["text"] for item in data]
-        labels = [item["intent"] for item in data]
+    def save_model(self):
+        """保存训练好的模型"""
+        try:
+            import pickle
+            
+            model_dir = self._get_model_dir()
+            os.makedirs(model_dir, exist_ok=True)
+            
+            model_path = os.path.join(model_dir, self.DEFAULT_MODEL_FILENAME)
+            
+            with open(model_path, 'wb') as f:
+                pickle.dump(self.model, f)
+                
+            logger.info(f"模型已保存到: {model_path}")
+            
+        except Exception as e:
+            logger.error(f"保存模型失败: {e}")
+            raise
 
-        # 使用批量分词方法
-        processed_texts = self._batch_tokenize(texts)
-
-        self.model.fit(processed_texts, labels)
-
-        # 确保模型目录存在
-        os.makedirs(model_dir, exist_ok=True)
-
-        # 保存模型
-        model_path = os.path.join(model_dir, model_filename)
-        joblib.dump(self.model, model_path)
-
-        logger.info(f"模型训练完成并保存至: {model_path}")
-        return model_path
-
-
-if __name__ == "__main__":
-    trainer = IntentTrainer()
-    trainer.train()
+    def load_model(self):
+        """加载已保存的模型"""
+        try:
+            import pickle
+            
+            model_dir = self._get_model_dir()
+            model_path = os.path.join(model_dir, self.DEFAULT_MODEL_FILENAME)
+            
+            if not os.path.exists(model_path):
+                logger.warning(f"模型文件不存在: {model_path}")
+                return False
+                
+            with open(model_path, 'rb') as f:
+                self.model = pickle.load(f)
+                
+            logger.info(f"模型已从 {model_path} 加载")
+            return True
+            
+        except Exception as e:
+            logger.error(f"加载模型失败: {e}")
+            return False

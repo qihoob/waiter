@@ -1,11 +1,12 @@
 import yaml
-from jinja2 import Environment, meta, Template
+from jinja2 import Environment, meta, Template, TemplateError
 import os
 import hashlib
-from typing import Dict, Any, Set, List, Optional
 import logging
+from typing import Dict, Any, Set, List, Optional
+from memory.local_cache import get_global_cache
 
-
+# 配置日志
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ class PromptTemplateLoader:
 
     # 新增常量：默认模板文件名
     DEFAULT_TEMPLATE_FILE = "prompt_templates.yaml"
-
+    
     def __init__(self, *template_file_paths):
         """
         初始化模板加载器
@@ -36,24 +37,7 @@ class PromptTemplateLoader:
         self.template_hashes = {}  # 存储模板文件哈希值用于热更新
         self.template_cache = {}  # 缓存已编译的模板
         self.env = Environment()
-
-        # 如果没有提供模板路径，则使用默认路径
-        if not template_file_paths:
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            default_template_path = os.path.join(current_dir, self.DEFAULT_TEMPLATE_FILE)
-
-            # 如果默认路径存在，则使用它
-            if os.path.exists(default_template_path):
-                template_file_paths = (default_template_path,)
-            else:
-                # 否则尝试当前目录下的文件
-                default_template_path = os.path.join(current_dir, self.DEFAULT_TEMPLATE_FILE)
-                if os.path.exists(default_template_path):
-                    template_file_paths = (default_template_path,)
-                else:
-                    raise FileNotFoundError("未找到模板文件。请提供模板文件路径或确保以下任一文件存在：\n"
-                                            f"1. {os.path.join(self.DEFAULT_TEMPLATE_FILE)}\n"
-                                            f"2. {self.DEFAULT_TEMPLATE_FILE} 在当前目录")
+        self.cache = get_global_cache()
 
         # 加载所有指定的模板文件
         for path in template_file_paths:
@@ -71,8 +55,13 @@ class PromptTemplateLoader:
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"模板文件不存在: {file_path}")
 
-        with open(file_path, 'r', encoding='utf-8') as f:
-            templates = yaml.safe_load(f)
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                templates = yaml.safe_load(f)
+        except yaml.YAMLError as e:
+            raise ValueError(f"模板文件格式错误: {file_path}, 错误: {e}")
+        except Exception as e:
+            raise Exception(f"读取模板文件失败: {file_path}, 错误: {e}")
 
         # 验证模板结构
         self._validate_template_structure(templates)
@@ -94,6 +83,9 @@ class PromptTemplateLoader:
         Raises:
             ValueError: 结构不合法时抛出异常
         """
+        if not isinstance(templates, dict):
+            raise ValueError("模板文件必须是字典格式")
+
         for name, content in templates.items():
             if not isinstance(content, dict):
                 raise ValueError(f"模板 '{name}' 的内容必须是字典类型")
@@ -113,20 +105,28 @@ class PromptTemplateLoader:
             str: SHA-1 哈希值
         """
         sha1_hash = hashlib.sha1()
-        with open(file_path, "rb") as f:
-            for chunk in iter(lambda: f.read(4096), b""):
-                sha1_hash.update(chunk)
-        return sha1_hash.hexdigest()
+        try:
+            with open(file_path, "rb") as f:
+                for chunk in iter(lambda: f.read(4096), b""):
+                    sha1_hash.update(chunk)
+            return sha1_hash.hexdigest()
+        except Exception as e:
+            logger.error(f"计算文件哈希值失败: {file_path}, 错误: {e}")
+            raise
 
     def reload_templates(self):
         """重新加载所有模板（热更新）"""
-        self.templates.clear()
-        self.template_cache.clear()
+        try:
+            self.templates.clear()
+            self.template_cache.clear()
 
-        for file_path in self.template_hashes.keys():
-            self._load_template_file(file_path)
+            for file_path in self.template_hashes.keys():
+                self._load_template_file(file_path)
 
-        logger.info("模板已重新加载")
+            logger.info("模板已重新加载")
+        except Exception as e:
+            logger.error(f"重新加载模板失败: {e}")
+            raise
 
     def get_template(self, template_name: str, lang: str = 'zh-CN', **kwargs) -> str:
         """
@@ -140,33 +140,50 @@ class PromptTemplateLoader:
         Returns:
             str: 渲染后的提示词
         """
-        if template_name not in self.templates:
-            raise ValueError(f"模板 {template_name} 不存在")
+        try:
+            if template_name not in self.templates:
+                raise ValueError(f"模板 {template_name} 不存在")
 
-        if lang not in self.templates[template_name]:
-            raise ValueError(f"模板 {template_name} 不支持语言 {lang}")
+            if lang not in self.templates[template_name]:
+                raise ValueError(f"模板 {template_name} 不支持语言 {lang}")
 
-        raw_template = self.templates[template_name][lang]
+            raw_template = self.templates[template_name][lang]
 
-        # 如果缓存中存在且有效，直接使用
-        cache_key = (template_name, lang, raw_template)
-        if cache_key in self.template_cache:
-            template = self.template_cache[cache_key]
-        else:
-            # 解析模板
-            template = self.env.from_string(raw_template)
-            self.template_cache[cache_key] = template
+            # 检查缓存
+            cache_key = f"template:{template_name}:{lang}"
+            cached_template = self.cache.get(cache_key)
+            
+            if cached_template and cached_template.get('content') == raw_template:
+                template = cached_template.get('compiled')
+            else:
+                # 编译模板
+                try:
+                    template = self.env.from_string(raw_template)
+                    # 缓存编译后的模板
+                    self.cache.set(cache_key, {
+                        'content': raw_template,
+                        'compiled': template
+                    }, expire_time=3600)  # 缓存1小时
+                except TemplateError as e:
+                    raise ValueError(f"模板语法错误: {e}")
 
-        # 提取模板中使用的变量
-        used_vars = self._extract_used_variables(raw_template)
+            # 提取模板中使用的变量
+            used_vars = self._extract_used_variables(raw_template)
 
-        # 过滤掉模板中没有使用的变量
-        filtered_context = {
-            k: v for k, v in kwargs.items() if k in used_vars or k.startswith('_')
-        }
+            # 过滤掉模板中没有使用的变量
+            filtered_context = {
+                k: v for k, v in kwargs.items() if k in used_vars or k.startswith('_')
+            }
 
-        # 渲染模板
-        return template.render(**filtered_context)
+            # 渲染模板
+            return template.render(**filtered_context)
+            
+        except ValueError:
+            # 重新抛出已知的值错误
+            raise
+        except Exception as e:
+            logger.error(f"渲染模板失败: 模板={template_name}, 语言={lang}, 错误={e}")
+            raise Exception(f"渲染模板失败: {e}")
 
     def _extract_used_variables(self, template_str: str) -> Set[str]:
         """
@@ -178,8 +195,12 @@ class PromptTemplateLoader:
         Returns:
             set of variable names
         """
-        ast = self.env.parse(template_str)
-        return meta.find_undeclared_variables(ast)
+        try:
+            ast = self.env.parse(template_str)
+            return meta.find_undeclared_variables(ast)
+        except Exception as e:
+            logger.error(f"提取模板变量失败: {e}")
+            return set()
 
     def list_templates(self) -> List[str]:
         """
