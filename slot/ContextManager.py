@@ -72,7 +72,7 @@ class ContextManager:
 
     def set_slot(self, slot_name: str, slot_value: Any) -> bool:
         """统一设置槽位，包含验证"""
-        # 验证槽位值
+    # 验证槽位值
         if not self.slot_manager.validate_slot(slot_name, slot_value):
             logger.warning(f"槽位值验证失败: {slot_name} = {slot_value}")
             return False

@@ -14,17 +14,7 @@ class SlotUtils:
 
     @staticmethod
     def format_slot_value(slot_name: str, slot_value: Any) -> Any:
-        """
-        格式化槽位值
-
-        Args:
-            slot_name: 槽位名称
-            slot_value: 槽位值
-
-        Returns:
-            Any: 格式化后的槽位值
-        """
-        # 移除常见的单位后缀
+        """格式化槽位值"""
         if isinstance(slot_value, str):
             # 对于人数槽位，提取数字部分
             if slot_name == "人数":
@@ -42,28 +32,21 @@ class SlotUtils:
 
         return slot_value
 
+
     @staticmethod
     def normalize_slot_name(slot_name: str) -> str:
-        """
-        标准化槽位名称
-
-        Args:
-            slot_name: 原始槽位名称
-
-        Returns:
-            str: 标准化后的槽位名称
-        """
-        # 统一槽位名称
+        """标准化槽位名称"""
         name_mapping = {
             "城市": "城市",
             "city": "城市",
             "地区": "地区",
             "region": "地区",
-            "天气状态": "天气",
-            "weather": "天气"
+            "天气": "天气",
+            "weather": "天气",
+            "天气状态": "天气"
         }
-
         return name_mapping.get(slot_name, slot_name)
+
 
     @staticmethod
     def get_slot_prompt(slot_name: str) -> str:

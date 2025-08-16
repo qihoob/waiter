@@ -164,7 +164,10 @@ class PromptBuilder:
         chain = chain.set_next(WeatherSlotHandler())  # 天气信息提取
         chain = chain.set_next(UserDataSlotHandler())  # 用户数据提取
 
-
+        # 第三阶段：场景和人数信息提取
+        chain = chain.set_next(SceneSlotHandler())  # 场景信息提取
+        chain = chain.set_next(GameSceneSlotHandler())  # 游戏场景信息提取
+        chain = chain.set_next(PeopleCountSlotHandler())  # 人数信息提取
 
         # 第四阶段：餐饮相关信息提取
         chain = chain.set_next(DishBasedCuisineClassifier())  # 基于菜品的菜系分类
@@ -175,11 +178,6 @@ class PromptBuilder:
         chain = chain.set_next(AllergenSlotHandler())  # 过敏原信息提取
         chain = chain.set_next(DrinkSlotHandler())  # 饮品信息提取
 
-        # 第三阶段：场景和人数信息提取
-        chain = chain.set_next(SceneSlotHandler())  # 场景信息提取
-        chain = chain.set_next(GameSceneSlotHandler())  # 游戏场景信息提取
-        chain = chain.set_next(PeopleCountSlotHandler())  # 人数信息提取
-
         # 第五阶段：其他信息提取
         chain = chain.set_next(FestivalSlotHandler())  # 节日信息提取
         chain = chain.set_next(GameSlotHandler())  # 游戏推荐信息提取
@@ -187,6 +185,7 @@ class PromptBuilder:
         # 第六阶段：上下文管理和槽位补全
         chain = chain.set_next(ContextHistoryRetrievalHandler())  # 上下文历史检索
         #chain = chain.set_next(MissingSlotCompletionHandler())  # 缺失槽位补全
+        chain = chain.set_next(SlotValidationHandler())  # 槽位验证
         chain = chain.set_next(ContextHistorySaveHandler())  # 上下文历史保存
 
         # 第七阶段：模板处理

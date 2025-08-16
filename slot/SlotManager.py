@@ -93,19 +93,23 @@ class SlotManager:
 
         return missing_slots
 
+    # SlotManager.py (增强版)
     def merge_slots(self, existing_slots: Dict[str, Any], new_slots: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        合并槽位信息，新槽位优先级更高
-
-        Args:
-            existing_slots: 现有槽位
-            new_slots: 新槽位
-
-        Returns:
-            Dict[str, Any]: 合并后的槽位
-        """
+        """合并槽位信息，新槽位优先级更高"""
         merged_slots = existing_slots.copy()
-        merged_slots.update(new_slots)
+
+        for slot_name, slot_value in new_slots.items():
+            # 对于列表类型的槽位，进行合并而不是覆盖
+            if (slot_name in merged_slots and
+                    isinstance(merged_slots[slot_name], list) and
+                    isinstance(slot_value, list)):
+                # 合并列表并去重
+                merged_list = merged_slots[slot_name] + slot_value
+                merged_slots[slot_name] = list(set(merged_list))
+            else:
+                # 其他类型直接覆盖
+                merged_slots[slot_name] = slot_value
+
         return merged_slots
 
     def get_slot_description(self, slot_name: str) -> Dict[str, Any]:

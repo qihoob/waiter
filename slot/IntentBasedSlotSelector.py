@@ -5,6 +5,8 @@ import logging
 
 # 导入全局变量管理模块
 from slot.global_vars import get_global_intent_classifier
+# 导入统一的意图槽位映射定义
+from slot.slot_definitions import INTENT_REQUIRED_SLOTS, SLOT_HANDLER_MAPPING
 
 logger = logging.getLogger(__name__)
 
@@ -14,141 +16,33 @@ class IntentBasedSlotSelector(SlotHandler):
     def __init__(self, next_handler=None):
         super().__init__(next_handler)
 
-        # 定义不同意图需要的槽位
-        self.intent_required_slots = {
-            # 餐饮相关意图
-            "order_food": {"菜系", "人数", "场景", "口味", "健康偏好"},
-            "recommend_dish": {"菜系", "人数", "场景", "口味", "健康偏好"},
-            "query_nutrition": {"健康偏好", "忌口", "过敏原"},
-
-            # 游戏相关意图
-            "recommend_game": {"场景", "人数", "游戏"},
-            "play_game": {"游戏", "人数"},
-
-            # 饮品相关意图
-            "order_drink": {"饮品", "人数"},
-            "recommend_drink": {"饮品", "场景"},
-
-            # 节日相关意图
-            "festival_recommend": {"节日", "场景", "人数"},
-
-            # 默认意图需要的槽位
-            "default": {"场景", "人数"},
-            "enhanced_basic_with_all": {"菜系", "人数", "场景", "口味", "健康偏好"}
-        }
-
-        # 定义槽位到处理器的映射
-        self.slot_handler_mapping = {
-            "菜系": "CuisineSlotHandler",
-            "人数": "PeopleCountSlotHandler",
-            "场景": "SceneSlotHandler",
-            "口味": "TasteSlotHandler",
-            "健康偏好": "HealthPreferenceSlotHandler",
-            "忌口": "DietaryRestrictionSlotHandler",
-            "过敏原": "AllergenSlotHandler",
-            "游戏": "GameSlotHandler",
-            "饮品": "DrinkSlotHandler",
-            "节日": "FestivalSlotHandler"
-        }
+        # 使用统一的意图槽位映射定义
+        self.intent_required_slots = INTENT_REQUIRED_SLOTS
+        self.slot_handler_mapping = SLOT_HANDLER_MAPPING
 
     def handle(self, context: Dict[str, Any]) -> Dict[str, Any]:
         try:
-            # 如果上下文中还没有意图，则进行意图识别
-            if 'intent' not in context or not context['intent']:
-                intent = self._classify_intent(context)
-                context['intent'] = intent
-                logger.info(f"识别到用户意图: {intent}")
-
-            # 获取该意图需要的槽位
-            intent = context.get('intent', 'default')
-            required_slots = self._get_required_slots_for_intent(intent)
-            context['required_slots'] = required_slots
-
-            logger.info(f"意图 '{intent}' 需要的槽位: {required_slots}")
+            # 获取意图分类器
+            intent_classifier = get_global_intent_classifier()
+            
+            # 从上下文中获取输入文本
+            input_text = context.get('input_text', '')
+            
+            # 分类意图
+            intent = intent_classifier.classify_intent(input_text)
+            
+            # 将意图添加到上下文中
+            context['intent'] = intent
+            
+            logger.info(f"识别到意图: {intent}")
 
         except Exception as e:
-            logger.warning(f"意图槽位选择过程中出错: {e}")
-            # 设置默认意图和槽位
-            context['intent'] = 'default'
-            context['required_slots'] = self.intent_required_slots.get("default", set()).copy()
+            logger.warning(f"意图识别过程中出错: {e}")
 
         return super().handle(context)
 
-    def _classify_intent(self, context: Dict[str, Any]) -> str:
-        """
-        使用全局意图分类器识别用户意图
-
-        Args:
-            context: 处理上下文
-
-        Returns:
-            str: 识别到的意图
-        """
-        try:
-            # 获取全局意图分类器
-            intent_classifier = get_global_intent_classifier()
-
-            if not intent_classifier:
-                logger.warning("意图分类器未初始化，使用默认意图")
-                return "default"
-
-            # 获取需要处理的文本
-            text_to_process = self._get_text_to_process(context)
-
-            if not text_to_process:
-                logger.warning("没有可处理的文本，使用默认意图")
-                return "default"
-
-            # 使用意图分类器进行分类
-            # 检查是否是机器学习分类器（具有classify方法）
-            if hasattr(intent_classifier, 'classify'):
-                intent = intent_classifier.classify(text_to_process)
-            # 否则假设是规则分类器（具有predict方法）
-            elif hasattr(intent_classifier, 'predict'):
-                intent = intent_classifier.predict(text_to_process)
-            else:
-                logger.warning("意图分类器不支持classify或predict方法，使用默认意图")
-                return "default"
-
-            return intent
-
-        except Exception as e:
-            logger.warning(f"意图分类过程中出错: {e}")
-            return "default"
-
-    def _get_text_to_process(self, context: Dict[str, Any]) -> Optional[str]:
-        """
-        获取需要处理的文本
-
-        Args:
-            context: 处理上下文
-
-        Returns:
-            需要处理的文本，如果没有则返回None
-        """
-        # 按优先级获取文本
-        text_sources = [
-            context.get('cleaned_text'),
-            context.get('input_text'),
-            context.get('tokenized_text')
-        ]
-
-        for text in text_sources:
-            if text:
-                return text
-
-        return None
-
     def _get_required_slots_for_intent(self, intent: str) -> Set[str]:
-        """
-        根据意图获取需要的槽位集合
-
-        Args:
-            intent: 用户意图
-
-        Returns:
-            Set[str]: 需要的槽位集合
-        """
+        """根据意图获取需要的槽位集合"""
         # 精确匹配意图
         if intent in self.intent_required_slots:
             return self.intent_required_slots[intent].copy()
