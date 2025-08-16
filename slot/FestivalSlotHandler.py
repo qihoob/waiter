@@ -1,16 +1,17 @@
-# E:\work\waiter\slot\FestivalSlotHandler.py
+# FestivalSlotHandler.py (优化版)
 """
 节日槽位处理器
 """
 
-from typing import Dict, Any, List, Optional
-from slot.SlotHandler import SlotHandler
+from typing import Dict, Any, Optional
+from slot.BaseSlotHandler import BaseSlotHandler
 from prompt_builder.features_dict import festival_dates
-import re
 from datetime import datetime
+import logging
 
+logger = logging.getLogger(__name__)
 
-class FestivalSlotHandler(SlotHandler):
+class FestivalSlotHandler(BaseSlotHandler):
     """节日槽位处理器"""
 
     def __init__(self, next_handler=None):
@@ -23,53 +24,33 @@ class FestivalSlotHandler(SlotHandler):
         self.festival_data = festival_dates
 
     def handle(self, context: Dict[str, Any]) -> Dict[str, Any]:
-        # 获取需要处理的文本
-        text_to_process = self._get_text_to_process(context)
+        try:
+            # 获取需要处理的文本
+            text_to_process = self._get_text_to_process(context)
 
-        # 获取当前日期
-        current_date = datetime.now()
+            # 获取当前日期
+            current_date = datetime.now()
 
-        if text_to_process:
-            # 提取节日信息
-            festival_info = self._extract_festival_info(text_to_process)
-        else:
-            # 如果没有文本输入，检查是否临近节日
-            festival_info = self._get_upcoming_festival(current_date)
+            festival_info = None
+            if text_to_process:
+                # 提取节日信息
+                festival_info = self._extract_festival_info(text_to_process)
+            else:
+                # 如果没有文本输入，检查是否临近节日
+                festival_info = self._get_upcoming_festival(current_date)
 
-        # 将节日信息添加到slots中
-        slots = context.setdefault('slots', {})
+            # 如果提取到节日信息，则更新slots
+            if festival_info:
+                self._set_slot(context, '节日', festival_info)
+                # 添加节日的详细信息
+                if festival_info in self.festival_data:
+                    self._set_slot(context, '节日信息', self.festival_data[festival_info])
+                logger.info(f"识别到节日: {festival_info}")
 
-        # 如果提取到节日信息，则更新slots
-        if festival_info:
-            slots['节日'] = festival_info
-            # 添加节日的详细信息
-            if festival_info in self.festival_data:
-                slots['节日信息'] = self.festival_data[festival_info]
+        except Exception as e:
+            logger.error(f"节日槽位处理出错: {e}")
 
         return super().handle(context)
-
-    def _get_text_to_process(self, context: Dict[str, Any]) -> Optional[str]:
-        """
-        获取需要处理的文本
-
-        Args:
-            context: 处理上下文
-
-        Returns:
-            需要处理的文本，如果没有则返回None
-        """
-        # 按优先级获取文本
-        text_sources = [
-            context.get('cleaned_text'),
-            context.get('input_text'),
-            context.get('tokenized_text')
-        ]
-
-        for text in text_sources:
-            if text:
-                return text
-
-        return None
 
     def _extract_festival_info(self, text: str) -> Optional[str]:
         """
@@ -130,7 +111,8 @@ class FestivalSlotHandler(SlotHandler):
                             return festival
                         elif 0 <= days_until_next_year <= 30:
                             return festival
-                except Exception:
+                except Exception as e:
+                    logger.warning(f"解析节日日期出错 {festival}: {e}")
                     continue
 
         # 特殊处理一些常见节日
@@ -144,86 +126,3 @@ class FestivalSlotHandler(SlotHandler):
             return "周末"
 
         return None
-
-
-# 测试代码
-def test_festival_slot_handler():
-    """测试节日槽位处理器"""
-    print("=" * 50)
-    print("测试节日槽位处理器")
-    print("=" * 50)
-
-    # 创建处理器实例
-    handler = FestivalSlotHandler()
-
-    # 测试用例
-    test_cases = [
-        {
-            "name": "识别情人节",
-            "context": {
-                "cleaned_text": "情人节想和女朋友一起过"
-            }
-        },
-        {
-            "name": "识别春节",
-            "context": {
-                "cleaned_text": "春节回家团圆饭"
-            }
-        },
-        {
-            "name": "识别圣诞节",
-            "context": {
-                "cleaned_text": "圣诞节平安夜一起吃大餐"
-            }
-        },
-        {
-            "name": "识别母亲节",
-            "context": {
-                "cleaned_text": "母亲节给妈妈准备惊喜"
-            }
-        },
-        {
-            "name": "无节日描述",
-            "context": {
-                "cleaned_text": "我想吃火锅"
-            }
-        },
-        {
-            "name": "多种节日选择第一个",
-            "context": {
-                "cleaned_text": "情人节和圣诞节都想要浪漫晚餐"
-            }
-        }
-    ]
-
-    # 执行测试
-    for i, test_case in enumerate(test_cases, 1):
-        print(f"\n测试 {i}: {test_case['name']}")
-        print(f"输入文本: {test_case['context']['cleaned_text']}")
-
-        try:
-            # 执行处理
-            result_context = handler.handle(test_case['context'].copy())
-
-            # 输出结果
-            slots = result_context.get('slots', {})
-            print(f"提取的节日: {slots.get('节日', '未提取到')}")
-            if '节日信息' in slots:
-                print(f"节日信息: {slots['节日信息']}")
-
-        except Exception as e:
-            print(f"处理出错: {e}")
-
-    # 测试无输入文本情况（检查临近节日）
-    print(f"\n测试临近节日检测:")
-    try:
-        context = {}
-        result_context = handler.handle(context)
-        slots = result_context.get('slots', {})
-        print(f"临近节日: {slots.get('节日', '未检测到临近节日')}")
-    except Exception as e:
-        print(f"处理出错: {e}")
-
-
-if __name__ == "__main__":
-    test_festival_slot_handler()

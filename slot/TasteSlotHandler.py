@@ -1,15 +1,16 @@
-# E:\work\waiter\slot\TasteSlotHandler.py
+# TasteSlotHandler.py (优化版)
 """
 口味槽位处理器
 """
 
-from typing import Dict, Any, List, Optional
-from slot.SlotHandler import SlotHandler
+from typing import Dict, Any, Optional
+from slot.BaseSlotHandler import BaseSlotHandler
 from prompt_builder.config import SLOT_DICT
-import re
+import logging
 
+logger = logging.getLogger(__name__)
 
-class TasteSlotHandler(SlotHandler):
+class TasteSlotHandler(BaseSlotHandler):
     """口味槽位处理器"""
 
     def __init__(self, next_handler=None):
@@ -20,44 +21,23 @@ class TasteSlotHandler(SlotHandler):
         self.taste_keywords.sort(key=len, reverse=True)
 
     def handle(self, context: Dict[str, Any]) -> Dict[str, Any]:
-        # 获取需要处理的文本
-        text_to_process = self._get_text_to_process(context)
+        try:
+            # 获取需要处理的文本
+            text_to_process = self._get_text_to_process(context)
 
-        if text_to_process:
-            # 提取口味信息
-            taste_info = self._extract_taste_info(text_to_process)
+            if text_to_process:
+                # 提取口味信息
+                taste_info = self._extract_taste_info(text_to_process)
 
-            # 将口味信息添加到slots中
-            slots = context.setdefault('slots', {})
+                # 如果提取到口味信息，则更新slots
+                if taste_info:
+                    self._set_slot(context, '口味', taste_info)
+                    logger.info(f"识别到口味: {taste_info}")
 
-            # 如果提取到口味信息，则更新slots
-            if taste_info:
-                slots['口味'] = taste_info
+        except Exception as e:
+            logger.error(f"口味槽位处理出错: {e}")
 
         return super().handle(context)
-
-    def _get_text_to_process(self, context: Dict[str, Any]) -> Optional[str]:
-        """
-        获取需要处理的文本
-
-        Args:
-            context: 处理上下文
-
-        Returns:
-            需要处理的文本，如果没有则返回None
-        """
-        # 按优先级获取文本
-        text_sources = [
-            context.get('cleaned_text'),
-            context.get('input_text'),
-            context.get('tokenized_text')
-        ]
-
-        for text in text_sources:
-            if text:
-                return text
-
-        return None
 
     def _extract_taste_info(self, text: str) -> Optional[str]:
         """
@@ -82,74 +62,3 @@ class TasteSlotHandler(SlotHandler):
                 return taste  # 返回原始大小写的口味词
 
         return None
-
-
-# 测试代码
-def test_taste_slot_handler():
-    """测试口味槽位处理器"""
-    print("=" * 50)
-    print("测试口味槽位处理器")
-    print("=" * 50)
-
-    # 创建处理器实例
-    handler = TasteSlotHandler()
-
-    # 测试用例
-    test_cases = [
-        {
-            "name": "识别辣味",
-            "context": {
-                "cleaned_text": "我想要麻辣口味的火锅"
-            }
-        },
-        {
-            "name": "识别甜味",
-            "context": {
-                "cleaned_text": "来点甜酸口味的糖醋里脊"
-            }
-        },
-        {
-            "name": "识别清淡口味",
-            "context": {
-                "cleaned_text": "最近想吃清淡一点的食物"
-            }
-        },
-        {
-            "name": "识别香味",
-            "context": {
-                "cleaned_text": "这道菜蒜香味很浓"
-            }
-        },
-        {
-            "name": "无口味描述",
-            "context": {
-                "cleaned_text": "我想吃米饭和蔬菜"
-            }
-        },
-        {
-            "name": "多种口味选择第一个",
-            "context": {
-                "cleaned_text": "要微辣的酸甜口味"
-            }
-        }
-    ]
-
-    # 执行测试
-    for i, test_case in enumerate(test_cases, 1):
-        print(f"\n测试 {i}: {test_case['name']}")
-        print(f"输入文本: {test_case['context']['cleaned_text']}")
-
-        try:
-            # 执行处理
-            result_context = handler.handle(test_case['context'].copy())
-
-            # 输出结果
-            slots = result_context.get('slots', {})
-            print(f"提取的口味: {slots.get('口味', '未提取到')}")
-
-        except Exception as e:
-            print(f"处理出错: {e}")
-
-
-if __name__ == "__main__":
-    test_taste_slot_handler()

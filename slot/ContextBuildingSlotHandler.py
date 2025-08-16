@@ -1,21 +1,37 @@
-# E:\work\waiter\slot\ContextBuildingSlotHandler.py
+# ContextBuildingSlotHandler.py (优化版)
 from typing import Dict, Any
 from slot.SlotHandler import SlotHandler
 import logging
+from slot.context_manager import get_context_manager
 
 logger = logging.getLogger(__name__)
 
 class ContextBuildingSlotHandler(SlotHandler):
-    """上下文构建槽位处理器"""
-
-    def __init__(self, next_handler=None):
-        super().__init__(next_handler)
+    """优化的上下文构建槽位处理器"""
 
     def handle(self, context: Dict[str, Any]) -> Dict[str, Any]:
         try:
+            # 使用ContextManager确保数据一致性
+            ctx_manager = get_context_manager()
+            ctx_manager.update_context(context)
+
             # 构建模板上下文
-            context['context_dict'] = self._build_context(context)
-            context['language'] = context.get('kwargs', {}).get("language", 'zh-CN')
+            context_dict = self._build_context(ctx_manager.context)
+
+            # 更新context
+            context_updates = {
+                'output': {
+                    'context_dict': context_dict,
+                    'language': context.get('kwargs', {}).get("language", 'zh-CN')
+                }
+            }
+            ctx_manager.update_context(context_updates)
+
+            # 同步回原始context
+            context.update({
+                'context_dict': context_dict,
+                'language': ctx_manager.context['output']['language']
+            })
 
             logger.info("上下文构建完成")
         except Exception as e:
@@ -26,21 +42,14 @@ class ContextBuildingSlotHandler(SlotHandler):
         return super().handle(context)
 
     def _build_context(self, context: Dict[str, Any]) -> Dict[str, Any]:
-        """构建模板上下文字典
-
-        Args:
-            context: 处理上下文
-
-        Returns:
-            dict: 包含模板所需变量的上下文字典
-        """
-        slots = context.get('slots', {})
-        location = context.get('location', '北京')
-        weather_info = context.get('weather_info', {})
-        order_history = context.get('order_history', [])
-        played_games = context.get('played_games', [])
-        user_request = context.get('input_text', '')
-        is_order = context.get('is_order', False)
+        """构建模板上下文字典"""
+        slots = context.get('recognition', {}).get('slots', {})
+        location = context.get('environment', {}).get('location', '北京')
+        weather_info = context.get('environment', {}).get('weather_info', {})
+        order_history = context.get('history', {}).get('orders', [])
+        played_games = context.get('history', {}).get('games', [])
+        user_request = context.get('input', {}).get('text', '')
+        is_order = context.get('recognition', {}).get('is_order', False)
 
         try:
             context_dict = {
@@ -68,6 +77,7 @@ class ContextBuildingSlotHandler(SlotHandler):
                 # 历史数据
                 "conversation_history": "",  # 如果有对话历史可传入
                 "order_history": "\n".join(order_history) if order_history else "无",
+                "is_order_placed": is_order,
 
                 # 地方特色菜品
                 "local_dishes": self._get_local_dishes(location, slots.get("菜系")),
@@ -85,32 +95,7 @@ class ContextBuildingSlotHandler(SlotHandler):
             return {}
 
     def _get_local_dishes(self, location, cuisine=None):
-        """获取当前城市的特色菜品
-
-        Args:
-            location: 城市名称
-            cuisine: 菜系类型（可选）
-
-        Returns:
-            str: 特色菜品字符串
-        """
-        city_dishes_map = {
-            "北京": ["烤鸭", "炸酱面", "涮羊肉"],
-            "成都": ["火锅", "夫妻肺片", "担担面"],
-            "广州": ["早茶", "烧味", "白切鸡"],
-            "上海": ["小笼包", "红烧肉", "腌笃鲜"],
-            "杭州": ["西湖醋鱼", "龙井虾仁", "东坡肉"]
-        }
-
-        dishes = city_dishes_map.get(location, ["地方特色菜"])
-
-        if cuisine:
-            cuisine_based_map = {
-                "川菜": ["麻辣香锅", "水煮鱼", "麻婆豆腐"],
-                "粤菜": ["烧味", "白切鸡", "早茶"],
-                "本帮菜": ["红烧肉", "腌笃鲜", "油爆虾"],
-                "日料": ["寿司", "刺身", "味噌汤"]
-            }
-            dishes = cuisine_based_map.get(cuisine, dishes)
-
-        return ", ".join(dishes)
+        """获取当前城市的特色菜品"""
+        # 这里可以实现具体的逻辑来获取地方特色菜品
+        # 暂时返回空列表作为示例
+        return []
