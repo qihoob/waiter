@@ -1,9 +1,10 @@
+import json
 from langchain.agents import Tool
 from llm.vector_store.menu_vector_store import get_menu_retriever
 
 
-def get_menu_tool(restaurant_id: str, query: str):
-    retriever = get_menu_retriever(restaurant_id)
+def get_menu_tool(query: str):
+    retriever = get_menu_retriever('r001')
     results = retriever.get_relevant_documents(query)
     return "\n".join([doc.page_content for doc in results])
 
