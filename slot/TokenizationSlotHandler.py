@@ -2,7 +2,7 @@
 from typing import Dict, Any, Tuple, List
 from slot.SlotHandler import SlotHandler
 import re
-from slot.context_manager import get_context_manager
+from slot.ContextManager import get_context_manager
 
 class TokenizationSlotHandler(SlotHandler):
     """增强版分词处理器，优化数量词处理和信息合并逻辑"""
