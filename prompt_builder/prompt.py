@@ -39,6 +39,7 @@ try:
     from slot.TemplateRenderingSlotHandler import TemplateRenderingSlotHandler
     from slot.ContextHistoryRetrievalHandler import ContextHistoryRetrievalHandler
     from slot.ContextHistorySaveHandler import ContextHistorySaveHandler
+    from slot.SinglePersonSceneHandler import SinglePersonSceneHandler
 
     # 新增的SlotHandler处理器
     from slot.AllergenSlotHandler import AllergenSlotHandler

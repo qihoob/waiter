@@ -29,6 +29,7 @@ from .DrinkSlotHandler import DrinkSlotHandler
 from .FestivalSlotHandler import FestivalSlotHandler
 from .ContextHistoryRetrievalHandler import ContextHistoryRetrievalHandler
 from .ContextHistorySaveHandler import ContextHistorySaveHandler
+from .SinglePersonSceneHandler import SinglePersonSceneHandler  # 新增一个人用餐场景处理器
 
 from .global_vars import (
     initialize_global_services,
@@ -68,6 +69,7 @@ __all__ = [
     'GameSceneSlotHandler',
     'ContextHistoryRetrievalHandler',
     'ContextHistorySaveHandler',
+    'SinglePersonSceneHandler',  # 新增一个人用餐场景处理器
 
     'initialize_global_services',
     'is_global_initialized',

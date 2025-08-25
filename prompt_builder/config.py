@@ -91,7 +91,8 @@ SLOT_DICT = {
         "朋友聚会", "公司年会", "家庭聚餐", "情侣约会", "生日宴", "商务宴请",
         "大家一块儿吃", "朋友一起玩", "多人聚餐", "聚餐",  # 朋友聚会别名
         "二人世界", "小两口吃饭", "约会吃饭",  # 情侣约会别名
-        "带娃吃饭", "一家老小聚餐", "家庭聚会", "亲子聚餐", "亲子活动", "一家小聚", "家庭餐"  # 家庭聚餐别名
+        "带娃吃饭", "一家老小聚餐", "家庭聚会", "亲子聚餐", "亲子活动", "一家小聚", "家庭餐",  # 家庭聚餐别名
+        "独自用餐", "单人聚餐", "一个人吃饭", " solo用餐"  # 一个人场景
     ],
     "就餐环境": [
         "有包间", "安静", "适合聊天", "亲子环境", "环境优雅", "有音乐", "正式"
@@ -209,7 +210,8 @@ INTENT_TO_TEMPLATE_MAP = {
     "group_gathering": "enhanced_basic_with_all",
     "takeaway_service": "summer_refreshing_meal_recommendation",
     "allergy_safe": "healthy_diet_recommendation",
-    "nutritional_info": "weight_loss_meal_recommendation"
+    "nutritional_info": "weight_loss_meal_recommendation",
+    "single_person_dining": "quick_meal"  # 一个人用餐场景使用快速简餐模板
 }
 
 TEMPLATE_TYPES = {
