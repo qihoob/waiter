@@ -1,12 +1,9 @@
-# E:\work\waiter\prompt_builder\prompt.py (重写版本)
-"""
-prompt.py - 重写后的 PromptBuilder 实现
-"""
-
+# E:\work\waiter\prompt_builder\prompt.py
 import logging
 import sys
 import argparse
 import os
+import gc
 
 # 配置日志记录
 logging.basicConfig(level=logging.INFO)
@@ -39,7 +36,6 @@ try:
     from slot.TemplateRenderingSlotHandler import TemplateRenderingSlotHandler
     from slot.ContextHistoryRetrievalHandler import ContextHistoryRetrievalHandler
     from slot.ContextHistorySaveHandler import ContextHistorySaveHandler
-    from slot.SinglePersonSceneHandler import SinglePersonSceneHandler
 
     # 新增的SlotHandler处理器
     from slot.AllergenSlotHandler import AllergenSlotHandler
@@ -49,6 +45,7 @@ try:
     from slot.FestivalSlotHandler import FestivalSlotHandler
     from slot.LocationSlotHandler import LocationSlotHandler
     from slot.SlotValidationHandler import SlotValidationHandler
+    from slot.SinglePersonSceneHandler import SinglePersonSceneHandler  # 新增一个人用餐场景处理器
 
     from collector.templates.template import PromptTemplateLoader
     from intent.nlu_classifier import IntentClassifier
@@ -68,15 +65,13 @@ except ImportError as e:
     logger.error(f"导入模块失败: {e}")
     raise
 
-# 初始化全局服务（在模块导入时自动初始化）
-if not is_global_initialized():
-    # 使用默认配置初始化全局服务
-    default_config = {
-        "max_length": 512,
-        "default_language": 'zh-CN',
-        "use_ml_intent": False
-    }
-    initialize_global_services(config=default_config)
+# 初始化全局服务
+default_config = {
+    "max_length": 512,
+    "default_language": 'zh-CN',
+    "use_ml_intent": False
+}
+initialize_global_services(config=default_config)
 
 class PromptBuilder:
     """
@@ -165,6 +160,7 @@ class PromptBuilder:
 
         # 第三阶段：场景和人数信息提取
         chain = chain.set_next(SceneSlotHandler())  # 场景信息提取
+        chain = chain.set_next(SinglePersonSceneHandler())  # 一个人用餐场景处理
         chain = chain.set_next(PeopleCountSlotHandler())  # 人数信息提取
 
         # 第四阶段：餐饮相关信息提取
