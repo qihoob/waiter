@@ -136,14 +136,14 @@ class ContextHistorySaveHandler(SlotHandler):
             timestamp = datetime.now().timestamp()
             
             # 保存槽位信息和输入历史
-            self.cache.set(slots_cache_key, current_slots, expire=self.cache_expire_time)
-            self.cache.set(input_cache_key, current_input, expire=self.cache_expire_time)
+            self.cache.set(slots_cache_key, current_slots, expire_time=self.cache_expire_time)
+            self.cache.set(input_cache_key, current_input, expire_time=self.cache_expire_time)
             
             # 也保存完整上下文以备不时之需
             cache_key = f"context_history:{user_id}"
             context_to_save = context.copy()
             context_to_save['timestamp'] = timestamp
-            self.cache.set(cache_key, context_to_save, expire=self.cache_expire_time)
+            self.cache.set(cache_key, context_to_save, expire_time=self.cache_expire_time)
             
         except Exception as e:
             logger.warning(f"保存上下文历史失败: {e}")
