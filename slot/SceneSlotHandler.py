@@ -2,6 +2,7 @@
 from typing import Dict, Any, Optional
 from slot.BaseSlotHandler import BaseSlotHandler
 from prompt_builder.config import SLOT_DICT
+from typing import Optional
 import logging
 
 logger = logging.getLogger(__name__)

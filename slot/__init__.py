@@ -27,6 +27,7 @@ from .AllergenSlotHandler import AllergenSlotHandler
 from .DietaryRestrictionSlotHandler import DietaryRestrictionSlotHandler
 from .DrinkSlotHandler import DrinkSlotHandler
 from .FestivalSlotHandler import FestivalSlotHandler
+from .GameSceneSlotHandler import GameSlotHandler
 from .ContextHistoryRetrievalHandler import ContextHistoryRetrievalHandler
 from .ContextHistorySaveHandler import ContextHistorySaveHandler
 
