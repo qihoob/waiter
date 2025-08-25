@@ -136,8 +136,8 @@ SLOT_DEFINITIONS = {
 # 意图与必需槽位的映射关系
 INTENT_REQUIRED_SLOTS = {
     # 餐饮相关意图
-    "order_food": {"菜系", "人数", "场景", "口味", "健康偏好"},
-    "recommend_dish": {"菜系", "人数", "场景", "口味", "健康偏好"},
+    "order_food": {"菜系", "人数"},
+    "recommend_dish": {"菜系", "人数", "口味", "健康偏好"},
     "query_nutrition": {"健康偏好", "忌口", "过敏原"},
 
     # 游戏相关意图

@@ -44,7 +44,7 @@ class ContextHistorySaveHandler(SlotHandler):
             # 如果有缺失的槽位且有用户ID和会话ID，则保存上下文
             if missing_slots:
                 # 保存当前上下文到缓存
-                self._save_context_to_history(user_id,  context)
+                self._save_context_to_history(user_id, context)
                 #logger.info(f"已保存上下文历史，用户ID: {user_id}, 会话ID: {session_id}")
 
                 # 设置提示信息
@@ -124,10 +124,27 @@ class ContextHistorySaveHandler(SlotHandler):
             context: 当前上下文
         """
         try:
-            cache_key = f"context_history:{user_id}"
+            # 分别保存槽位信息和用户输入历史
+            slots_cache_key = f"context_slots:{user_id}"
+            input_cache_key = f"context_input:{user_id}"
+
+            # 获取当前上下文中的槽位和输入
+            current_slots = context.get('slots', {})
+            current_input = context.get('input_text', '')
+            
             # 添加时间戳用于过期检查
-            context['timestamp'] = datetime.now().timestamp()
-            self.cache.set(cache_key, context, expire=self.cache_expire_time)
+            timestamp = datetime.now().timestamp()
+            
+            # 保存槽位信息和输入历史
+            self.cache.set(slots_cache_key, current_slots, expire=self.cache_expire_time)
+            self.cache.set(input_cache_key, current_input, expire=self.cache_expire_time)
+            
+            # 也保存完整上下文以备不时之需
+            cache_key = f"context_history:{user_id}"
+            context_to_save = context.copy()
+            context_to_save['timestamp'] = timestamp
+            self.cache.set(cache_key, context_to_save, expire=self.cache_expire_time)
+            
         except Exception as e:
             logger.warning(f"保存上下文历史失败: {e}")
 

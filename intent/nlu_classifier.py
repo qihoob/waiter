@@ -3,25 +3,25 @@
 class IntentClassifier:
     def __init__(self):
         self.intent_rules = {
-            "order": [
+            "order_food": [
                 "下单", "点菜", "订位", "订桌", "订好了", "订过",
                 "订座", "订餐", "点了", "选好了", "确定了"
             ],
-            "game_recommendation": [
+            "recommend_game": [
                 "玩什么", "打麻将", "斗地主", "狼人杀", "真心话大冒险",
                 "你画我猜", "谁是卧底", "拼图游戏", "情侣互动游戏"
             ],
-            "healthy_diet": [
+            "recommend_dish": [
                 "低脂", "清淡", "高蛋白", "无糖", "控油", "控卡", "减脂",
                 "轻食", "健身餐", "少油少盐"
             ],
-            "festival": [
+            "festival_recommend": [
                 "情人节", "七夕", "圣诞节", "元旦", "春节", "生日宴", "纪念日"
             ],
-            "vegetarian": [
+            "query_nutrition": [
                 "素食", "不吃肉", "不吃荤", "素斋", "纯素"
             ],
-            "weather_based": [
+            "order_drink": [
                 "冷", "热", "下雨", "刮风", "天太热", "天太冷"
             ],
             "child_or_elderly": [
@@ -56,8 +56,6 @@ class IntentClassifier:
             ]
         }
 
-
-
     def classify(self, text, slots=None):
         scores = {}
 
@@ -69,27 +67,33 @@ class IntentClassifier:
         if slots:
             if "健康偏好" in slots:
                 health_pref = slots["健康偏好"]
-                if health_pref == "低脂":
+                if health_pref in ["低脂", "减脂", "低卡路里", "减肥"]:
                     scores["weight_loss"] += 3
-                elif health_pref == "无糖":
+                elif health_pref in ["无糖", "控糖"]:
                     scores["intermittent_fasting"] += 3
-            if "特殊节日" in slots:
-                scores["festival"] += 2
-            if "天气状态" in slots:
-                weather = slots["天气状态"]
+                elif health_pref == "高蛋白":
+                    scores["fitness_nutrition"] += 3
+            if "节日" in slots or "特殊节日" in slots:
+                scores["festival_recommend"] += 2
+            if "天气" in slots or "天气状态" in slots:
+                weather = slots.get("天气", slots.get("天气状态", ""))
                 if weather in ["寒冷", "阴雨"]:
-                    scores["cold_weather_meal_recommendation"] += 2
+                    scores["seasonal_food"] += 2
                 elif weather in ["炎热", "晴朗"]:
-                    scores["summer_refreshing_meal_recommendation"] += 2
+                    scores["seasonal_food"] += 2
 
         # 优先级排序
         priority_order = [
-            "festival", "game_recommendation",
+            "festival_recommend", "recommend_game",
             "weight_loss", "intermittent_fasting",
-            "healthy_diet", "vegetarian",
+            "recommend_dish", "query_nutrition",
             "seasonal_food", "child_or_elderly",
-            "order"
+            "order_food"
         ]
+
+        # 如果所有意图得分都为0，返回默认意图
+        if all(score == 0 for score in scores.values()):
+            return "order_food"
 
         best_intent = max(scores, key=scores.get)
         tied_intents = [intent for intent, score in scores.items() if score == scores[best_intent]]

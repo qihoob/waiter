@@ -192,13 +192,14 @@ ORDER_ALIAS_MAP = {
     "已下单": ["订好了", "订过", "确定了", "已经订"]
 }
 
+# 更新意图到模板的映射关系
 INTENT_TO_TEMPLATE_MAP = {
-    "order": "enhanced_basic_with_all",
-    "game_recommendation": "pre_meal_game_recommendation",
-    "healthy_diet": "healthy_diet_recommendation",
-    "festival": "festival_special_meal_recommendation",
-    "vegetarian": "vegetarian_meal_recommendation",
-    "weather_based": "cold_weather_meal_recommendation",  # 动态切换冬夏
+    "order_food": "enhanced_basic_with_all",
+    "recommend_game": "pre_meal_game_recommendation",
+    "recommend_dish": "healthy_diet_recommendation",
+    "festival_recommend": "festival_special_meal_recommendation",
+    "query_nutrition": "vegetarian_meal_recommendation",
+    "order_drink": "cold_weather_meal_recommendation",  # 动态切换冬夏
     "child_or_elderly": "child_or_elderly_health_meal",
     "weight_loss": "weight_loss_meal_recommendation",
     "intermittent_fasting": "intermittent_fasting_or_low_sugar_meal",

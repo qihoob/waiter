@@ -46,23 +46,34 @@ class ContextHistoryRetrievalHandler(SlotHandler):
 
         Args:
             user_id: 用户ID
-            session_id: 会话ID
 
         Returns:
             Dict[str, Any]: 历史上下文，如果不存在或过期则返回空字典
         """
         try:
-            cache_key = f"context_history:{user_id}"
-            cached_data = self.cache.get(cache_key)
-
-            if cached_data:
-                # 检查时间戳是否过期
-                timestamp = cached_data.get('timestamp', 0)
-                if datetime.now().timestamp() - timestamp <= self.cache_expire_time:
-                    return cached_data
-                else:
-                    # 过期则删除
-                    self.cache.delete(cache_key)
+            # 获取槽位信息和输入历史
+            slots_cache_key = f"context_slots:{user_id}"
+            input_cache_key = f"context_input:{user_id}"
+            
+            # 获取历史槽位和输入信息
+            cached_slots = self.cache.get(slots_cache_key) or {}
+            cached_input_history = self.cache.get(input_cache_key) or []
+            
+            # 检查是否过期（只需要检查一个，因为它们同时创建）
+            # 这里简化处理，实际应用中可能需要更复杂的过期检查
+            
+            # 构建历史上下文
+            historical_context = {}
+            
+            # 添加槽位信息
+            if cached_slots:
+                historical_context['slots'] = cached_slots
+                
+            # 合并输入历史，用逗号连接，且历史在前
+            if cached_input_history:
+                historical_context['input_text'] = "，".join(cached_input_history)
+                
+            return historical_context
 
         except Exception as e:
             logger.warning(f"获取上下文历史失败: {e}")
@@ -90,6 +101,10 @@ class ContextHistoryRetrievalHandler(SlotHandler):
                 merged_slots = merged_context['slots'].copy()
                 merged_slots.update(value)
                 merged_context['slots'] = merged_slots
+            # 特别处理输入文本，历史在前，新的在后
+            elif key == 'input_text' and 'input_text' in merged_context:
+                # 历史输入在前，当前输入在后，用逗号连接
+                merged_context['input_text'] = f"{merged_context['input_text']}，{value}"
             else:
                 # 其他字段直接更新为当前值
                 merged_context[key] = value

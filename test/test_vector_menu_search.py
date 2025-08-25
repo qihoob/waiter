@@ -3,7 +3,7 @@ from llm.vector_store.menu_vector_store import *
 
 
 def init_vector_stor():
-    with open("D:/PycharmProjects/waiter/database/restaurant_menu_enriched.json", "r", encoding="utf-8") as f:
+    with open("D:/pythonworkspace/waiter/database/restaurant_menu_enriched.json", "r", encoding="utf-8") as f:
         menu_data = json.load(f)
     restaurant_id = menu_data["restaurant_id"]
     menu_items = menu_data["menu"]
@@ -23,5 +23,5 @@ def test_search(query):
 
 if __name__ == '__main__':
     # 初始化一次
-    # init_vector_stor()
+    #init_vector_stor()
     test_search(query='约会，推荐两道菜')

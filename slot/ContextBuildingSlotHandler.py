@@ -48,7 +48,7 @@ class ContextBuildingSlotHandler(SlotHandler):
         weather_info = context.get('environment', {}).get('weather_info', {})
         order_history = context.get('history', {}).get('orders', [])
         played_games = context.get('history', {}).get('games', [])
-        user_request = context.get('input', {}).get('text', '')
+        user_request = context.get('input_text', context.get('input', {}).get('text', ''))
         is_order = context.get('recognition', {}).get('is_order', False)
 
         try:
@@ -71,8 +71,8 @@ class ContextBuildingSlotHandler(SlotHandler):
                 "allergy_avoidance": slots.get("过敏原"),
 
                 # 外部条件影响字段
-                "weather": slots.get("天气") or weather_info.get("天气", "未知"),
-                "special_event": slots.get("特殊节日"),
+                "weather": slots.get("天气状态") or slots.get("天气") or weather_info.get("天气", "未知"),
+                "festival": slots.get("特殊节日"),
 
                 # 历史数据
                 "conversation_history": "",  # 如果有对话历史可传入
@@ -96,6 +96,23 @@ class ContextBuildingSlotHandler(SlotHandler):
 
     def _get_local_dishes(self, location, cuisine=None):
         """获取当前城市的特色菜品"""
-        # 这里可以实现具体的逻辑来获取地方特色菜品
-        # 暂时返回空列表作为示例
-        return []
+        city_dishes_map = {
+            "北京": ["烤鸭", "炸酱面", "涮羊肉"],
+            "成都": ["火锅", "夫妻肺片", "担担面"],
+            "广州": ["早茶", "烧味", "白切鸡"],
+            "上海": ["小笼包", "红烧肉", "腌笃鲜"],
+            "杭州": ["西湖醋鱼", "龙井虾仁", "东坡肉"]
+        }
+
+        dishes = city_dishes_map.get(location, [])
+        
+        if cuisine:
+            cuisine_based_map = {
+                "川菜": ["麻辣香锅", "水煮鱼", "麻婆豆腐"],
+                "粤菜": ["烧味", "白切鸡", "早茶"],
+                "本帮菜": ["红烧肉", "腌笃鲜", "油爆虾"],
+                "日料": ["寿司", "刺身", "味噌汤"]
+            }
+            dishes = cuisine_based_map.get(cuisine, dishes)
+
+        return ", ".join(dishes) if dishes else ""
