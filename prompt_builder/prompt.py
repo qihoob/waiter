@@ -14,7 +14,6 @@ logger = logging.getLogger(__name__)
 
 # 尝试导入模块（假设这些模块和配置已存在）
 try:
-    from slot.slot_extractor import extract_slots
     from prompt_builder.config import (
         GAME_RECOMMENDATION_RULES,
         GAME_ENVIRONMENT_MAP,
@@ -47,7 +46,6 @@ try:
     from slot.DishBasedCuisineClassifier import DishBasedCuisineClassifier
     from slot.DrinkSlotHandler import DrinkSlotHandler
     from slot.FestivalSlotHandler import FestivalSlotHandler
-    from slot.GameSceneSlotHandler import GameSceneSlotHandler
     from slot.LocationSlotHandler import LocationSlotHandler
     from slot.SlotValidationHandler import SlotValidationHandler
 
@@ -166,7 +164,6 @@ class PromptBuilder:
 
         # 第三阶段：场景和人数信息提取
         chain = chain.set_next(SceneSlotHandler())  # 场景信息提取
-        chain = chain.set_next(GameSceneSlotHandler())  # 游戏场景信息提取
         chain = chain.set_next(PeopleCountSlotHandler())  # 人数信息提取
 
         # 第四阶段：餐饮相关信息提取

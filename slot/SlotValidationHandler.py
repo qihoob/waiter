@@ -2,7 +2,7 @@
 from typing import Dict, Any, List, Set
 from slot.SlotHandler import SlotHandler
 import logging
-from slot.context_manager import get_context_manager
+from slot.ContextManager import get_context_manager
 # 导入统一的意图槽位映射定义
 from slot.slot_definitions import INTENT_REQUIRED_SLOTS
 

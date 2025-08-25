@@ -1,5 +1,5 @@
 # SceneSlotHandler.py (优化版)
-from typing import Dict, Any
+from typing import Dict, Any,Optional
 from slot.BaseSlotHandler import BaseSlotHandler
 from prompt_builder.config import SLOT_DICT
 import logging

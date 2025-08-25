@@ -2,7 +2,7 @@
 from typing import Dict, Any
 from slot.SlotHandler import SlotHandler
 import logging
-from slot.context_manager import get_context_manager
+from slot.ContextManager import get_context_manager
 
 logger = logging.getLogger(__name__)
 
