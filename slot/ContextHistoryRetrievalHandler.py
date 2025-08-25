@@ -71,7 +71,7 @@ class ContextHistoryRetrievalHandler(SlotHandler):
                 
             # 合并输入历史，用逗号连接，且历史在前
             if cached_input_history:
-                historical_context['input_text'] = "，".join(cached_input_history)
+                historical_context['input_text'] = cached_input_history
                 
             return historical_context
 

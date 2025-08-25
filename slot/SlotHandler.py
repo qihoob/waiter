@@ -23,7 +23,7 @@ class SlotHandler(ABC):
         if self._next_handler:
             #logger.debug(f"Passing to next handler: {self._next_handler.__class__.__name__}")
             # 调用下一个处理器
-            #logger.info(f"current context: {context}")
+            logger.info(f"current context: {context}")
             return self._next_handler.handle(context)
         return context
 

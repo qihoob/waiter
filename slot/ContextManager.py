@@ -37,6 +37,7 @@ class ContextManager:
                 'weather_info': {"天气": "未知"}
             },
             'history': {
+                'input_text':[],
                 'orders': [],
                 'games': []
             },

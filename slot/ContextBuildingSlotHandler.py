@@ -2,7 +2,6 @@
 from typing import Dict, Any
 from slot.SlotHandler import SlotHandler
 import logging
-from slot.ContextManager import get_context_manager
 
 logger = logging.getLogger(__name__)
 
@@ -11,27 +10,12 @@ class ContextBuildingSlotHandler(SlotHandler):
 
     def handle(self, context: Dict[str, Any]) -> Dict[str, Any]:
         try:
-            # 使用ContextManager确保数据一致性
-            ctx_manager = get_context_manager()
-            ctx_manager.update_context(context)
-
             # 构建模板上下文
-            context_dict = self._build_context(ctx_manager.context)
+            context_dict = self._build_context(context)
 
             # 更新context
-            context_updates = {
-                'output': {
-                    'context_dict': context_dict,
-                    'language': context.get('kwargs', {}).get("language", 'zh-CN')
-                }
-            }
-            ctx_manager.update_context(context_updates)
-
-            # 同步回原始context
-            context.update({
-                'context_dict': context_dict,
-                'language': ctx_manager.context['output']['language']
-            })
+            context['context_dict'] = context_dict
+            context['language'] = context.get('kwargs', {}).get("language", 'zh-CN')
 
             logger.info("上下文构建完成")
         except Exception as e:
@@ -47,39 +31,43 @@ class ContextBuildingSlotHandler(SlotHandler):
         location = context.get('environment', {}).get('location', '北京')
         weather_info = context.get('environment', {}).get('weather_info', {})
         order_history = context.get('history', {}).get('orders', [])
-        played_games = context.get('history', {}).get('games', [])
         user_request = context.get('input_text', context.get('input', {}).get('text', ''))
         is_order = context.get('recognition', {}).get('is_order', False)
 
         try:
             context_dict = {
+                # 基础信息
                 "user_request": user_request,
                 "city": location,
-
-                # 用户画像分析字段
-                "scene": slots.get("场景"),
+                
+                # 用户画像信息
                 "people_count": slots.get("人数"),
+                "scene": slots.get("场景"),
                 "cuisine": slots.get("菜系"),
+                "special_dish": slots.get("特色菜"),
                 "taste": slots.get("口味"),
                 "drink": slots.get("饮品"),
                 "environment": slots.get("就餐环境"),
                 "meal_type": slots.get("就餐形式"),
-
-                # 健康与饮食限制字段
+                
+                # 菜系详细信息
+                "cuisine_features": slots.get("菜系说明"),
+                "flavor_features": slots.get("口味特点"),
+                
+                # 健康与饮食限制
                 "health_preference": slots.get("健康偏好"),
                 "dietary_restriction": slots.get("忌口"),
                 "allergy_avoidance": slots.get("过敏原"),
-
-                # 外部条件影响字段
-                "weather": slots.get("天气状态") or slots.get("天气") or weather_info.get("天气", "未知"),
-                "festival": slots.get("特殊节日"),
-
+                
+                # 外部条件
+                "weather": self._get_weather_info(slots, weather_info),
+                "festival": slots.get("特殊节日") or slots.get("节日"),
+                
                 # 历史数据
-                "conversation_history": "",  # 如果有对话历史可传入
-                "order_history": "\n".join(order_history) if order_history else "无",
+                "order_history": self._format_order_history(order_history),
                 "is_order_placed": is_order,
-
-                # 地方特色菜品
+                
+                # 地方特色
                 "local_dishes": self._get_local_dishes(location, slots.get("菜系")),
             }
 
@@ -94,7 +82,17 @@ class ContextBuildingSlotHandler(SlotHandler):
             logger.error(f"构建上下文时发生错误: {e}")
             return {}
 
-    def _get_local_dishes(self, location, cuisine=None):
+    def _get_weather_info(self, slots: Dict[str, Any], weather_info: Dict[str, Any]) -> str:
+        """获取天气信息"""
+        return (slots.get("天气状态") or 
+                slots.get("天气") or 
+                weather_info.get("天气", "未知"))
+
+    def _format_order_history(self, order_history: list) -> str:
+        """格式化订单历史"""
+        return "\n".join(order_history) if order_history else "无"
+
+    def _get_local_dishes(self, location: str, cuisine: str = None) -> str:
         """获取当前城市的特色菜品"""
         city_dishes_map = {
             "北京": ["烤鸭", "炸酱面", "涮羊肉"],

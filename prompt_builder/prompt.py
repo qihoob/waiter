@@ -36,6 +36,7 @@ try:
     from slot.TemplateRenderingSlotHandler import TemplateRenderingSlotHandler
     from slot.ContextHistoryRetrievalHandler import ContextHistoryRetrievalHandler
     from slot.ContextHistorySaveHandler import ContextHistorySaveHandler
+    from slot.SinglePersonSceneHandler import SinglePersonSceneHandler
 
     # 新增的SlotHandler处理器
     from slot.AllergenSlotHandler import AllergenSlotHandler
@@ -61,6 +62,9 @@ try:
         get_global_intent_classifier,
         is_global_initialized
     )
+    
+    # 导入上下文管理器
+    from slot.ContextManager import get_context_manager
 except ImportError as e:
     logger.error(f"导入模块失败: {e}")
     raise
@@ -114,16 +118,28 @@ class PromptBuilder:
             str: 构建好的提示词
         """
         try:
-            # 构建初始上下文
-            context = {
-                'input_text': input_text,
-                'user_id': user_id,
-                'location': location,
-                'is_order': is_order,
-                'intent': intent,
-                'kwargs': kwargs
-            }
-
+            # 获取全局上下文管理器
+            context_manager = get_context_manager()
+            
+            # 更新上下文管理器中的基础信息
+            context_manager.update_context({
+                'input': {
+                    'text': input_text
+                },
+                'user': {
+                    'id': user_id
+                },
+                'environment': {
+                    'location': location
+                },
+                'recognition': {
+                    'is_order': is_order,
+                    'intent': intent
+                }
+            })
+            
+            # 获取上下文
+            context = context_manager.get_context()
             # 构建完整的槽位处理责任链
             slot_handler_chain = self._build_complete_slot_chain()
 
