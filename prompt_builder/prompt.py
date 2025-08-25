@@ -14,7 +14,6 @@ logger = logging.getLogger(__name__)
 
 # 尝试导入模块（假设这些模块和配置已存在）
 try:
-    from slot.slot_extractor import extract_slots
     from prompt_builder.config import (
         GAME_RECOMMENDATION_RULES,
         GAME_ENVIRONMENT_MAP,
@@ -382,22 +381,30 @@ def main():
     parser.add_argument('--location', type=str, default='北京', help='位置信息')
     parser.add_argument('--interactive', '-I', action='store_true', help='启动交互模式')
 
-    args = parser.parse_args()
+    try:
+        args = parser.parse_args()
 
-    # 创建CLI实例
-    cli = PromptCommandLineInterface()
+        # 创建CLI实例
+        cli = PromptCommandLineInterface()
 
-    if args.interactive:
-        # 启动交互模式
-        cli.start_interactive_mode()
-    elif args.input:
-        # 单次执行模式
-        result = cli.run_single_prompt(args.input, args.user_id, args.location)
-        print("🤖 生成的提示词:")
-        print(result)
-    else:
-        # 默认启动交互模式
-        cli.start_interactive_mode()
+        if args.interactive:
+            # 启动交互模式
+            cli.start_interactive_mode()
+        elif args.input:
+            # 单次执行模式
+            result = cli.run_single_prompt(args.input, args.user_id, args.location)
+            print("🤖 生成的提示词:")
+            print(result)
+        else:
+            # 默认启动交互模式
+            cli.start_interactive_mode()
+    except Exception as e:
+        logger.error(f"程序执行出错: {e}", exc_info=True)
+        raise
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except Exception as e:
+        logger.error(f"程序启动失败: {e}", exc_info=True)
+        sys.exit(1)

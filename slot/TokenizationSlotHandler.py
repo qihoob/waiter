@@ -2,7 +2,10 @@
 from typing import Dict, Any, Tuple, List
 from slot.SlotHandler import SlotHandler
 import re
-from slot.context_manager import get_context_manager
+from slot.ContextManager import get_context_manager
+import logging
+
+logger = logging.getLogger(__name__)
 
 class TokenizationSlotHandler(SlotHandler):
     """增强版分词处理器，优化数量词处理和信息合并逻辑"""
@@ -132,7 +135,17 @@ class TokenizationSlotHandler(SlotHandler):
         """优化分词：支持多token中文数字组合（如"一 百 元"→"一百元"）"""
         from slot.global_vars import get_global_tokenizer
         tokenizer = get_global_tokenizer()
-        tokens = tokenizer.tokenize(text)
+        
+        # 如果分词器不可用，使用简单分词
+        if tokenizer is None:
+            return ' '.join(list(text))
+            
+        try:
+            tokens = tokenizer.tokenize(text)
+        except Exception as e:
+            logger.error(f"分词过程出错: {e}")
+            return ' '.join(list(text))
+            
         processed_tokens = []
         i = 0
 

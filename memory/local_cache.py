@@ -14,6 +14,9 @@ class LRUCache:
     """LRU缓存实现"""
     
     def __init__(self, capacity: int = 1000):
+        # 添加容量上限检查，防止过大的缓存占用过多内存
+        if capacity <= 0 or capacity > 100000:
+            raise ValueError("缓存容量必须在1-100000之间")
         self.capacity = capacity
         self.cache = OrderedDict()
         self.lock = threading.RLock()
@@ -30,6 +33,10 @@ class LRUCache:
             
     def put(self, key: str, value: Any, expire_time: int = 300) -> None:
         """设置缓存值"""
+        # 添加过期时间限制，防止过长的缓存时间
+        if expire_time <= 0 or expire_time > 86400:  # 最大24小时
+            expire_time = 300  # 使用默认值
+            
         with self.lock:
             if key in self.cache:
                 # 更新现有键值
@@ -82,6 +89,17 @@ class LRUCache:
                 del self.cache[key]
                 return False
                 
+            # 添加缓存项大小检查，防止过大的值占用内存
+            value = cached_data.get('value')
+            if value is not None:
+                # 简单估算对象大小（以字节为单位）
+                import sys
+                size = sys.getsizeof(value)
+                if size > 10 * 1024 * 1024:  # 超过10MB的单个缓存项
+                    logger.warning(f"检测到过大的缓存项 ({size} bytes)，自动清理")
+                    del self.cache[key]
+                    return False
+                    
             return True
 
 class GlobalCache:
@@ -100,8 +118,12 @@ class GlobalCache:
 
     def _initialize(self):
         """初始化缓存"""
-        self.cache = LRUCache(int(os.getenv("CACHE_CAPACITY", 1000)))
-        logger.info("全局缓存管理器初始化完成")
+        try:
+            self.cache = LRUCache(int(os.getenv("CACHE_CAPACITY", 1000)))
+            logger.info("全局缓存管理器初始化完成")
+        except Exception as e:
+            logger.error(f"全局缓存管理器初始化失败: {e}")
+            raise
 
     @classmethod
     def get_instance(cls):
@@ -183,7 +205,12 @@ def get_global_cache() -> GlobalCache:
     Returns:
         GlobalCache: GlobalCache单例实例
     """
-    return GlobalCache.get_instance()
+    try:
+        return GlobalCache.get_instance()
+    except Exception as e:
+        logger.error(f"获取全局缓存实例失败: {e}")
+        raise
 
 # 全局缓存实例（可选）
-global_cache = GlobalCache.get_instance()
+# 注释掉自动初始化，避免在模块导入时就创建实例
+# global_cache = GlobalCache.get_instance()

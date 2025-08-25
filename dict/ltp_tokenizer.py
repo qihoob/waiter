@@ -71,6 +71,7 @@ def get_ltp_instance(model_path: Optional[str] = None) -> LTP:
                 _ltp_instance = LTP()
                 logger.info("使用默认路径加载LTP模型")
         except Exception as e:
+            logger.error(f"LTP初始化失败: {e}")
             raise RuntimeError(f"LTP初始化失败: {e}")
 
     return _ltp_instance

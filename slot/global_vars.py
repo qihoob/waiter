@@ -47,7 +47,11 @@ def initialize_global_services(config=None, intent_classifier=None, tokenizer=No
         GLOBAL_INTENT_CLASSIFIER = _initialize_intent_classifier(intent_classifier, GLOBAL_CONFIG)
 
         # 初始化分词器
-        GLOBAL_TOKENIZER = tokenizer or get_tokenizer()
+        try:
+            GLOBAL_TOKENIZER = tokenizer or get_tokenizer()
+        except Exception as e:
+            logger.error(f"分词器初始化失败: {e}")
+            raise
 
         _global_initialized = True
         logger.info("全局服务初始化完成")
