@@ -1,5 +1,4 @@
-from pydantic import BaseModel
-from llm.llm_agent import build_recommend_agent
+from llm import build_recommend_agent
 import re
 
 def chat(req):

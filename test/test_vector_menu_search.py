@@ -1,5 +1,4 @@
 import json
-from llm.vector_store.menu_vector_store import *
 
 
 def init_vector_stor():
