@@ -1,9 +1,10 @@
 import unittest
-from collector.prompt_builder.prompt import PromptBuilder
+from prompt_builder.prompt import PromptBuilder
+from slot.slot_extractor import extract_slots
 
 class TestPromptBuilder(unittest.TestCase):
     def setUp(self):
-        self.builder = PromptBuilder(use_ml_intent=False)
+        self.builder = PromptBuilder(intent_classifier=False)
 
     def test_clean_input(self):
         text = "   我想吃点低卡又清淡的菜，不吃海鲜。   "

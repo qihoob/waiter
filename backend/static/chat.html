@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>餐厅智能助手</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        align-items: center;
+        background-color: #f4f7fc;
+        height: 100vh;
+        overflow: hidden;
+    }
+    .chat-container {
+        width: 100%;
+        max-width: 600px;
+        height: 70%;
+        overflow-y: auto;
+        margin-top: 20px;
+        background-color: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        display: flex;
+        flex-direction: column;
+    }
+    .message {
+        margin-bottom: 10px;
+        padding: 10px;
+        border-radius: 5px;
+        max-width: 80%;
+        word-wrap: break-word;
+    }
+    .user-message {
+        background-color: #daf7a6;
+        align-self: flex-start;
+    }
+    .assistant-message {
+        background-color: #f0f0f0;
+        align-self: flex-end;
+    }
+    .meta-info {
+        font-size: 14px;
+        color: gray;
+        margin-top: 5px;
+    }
+    .orders-container {
+        font-size: 14px;
+        color: #333;
+        margin-top: 10px;
+        background-color: #fffbe6;
+        padding: 10px;
+        border-radius: 5px;
+        border: 1px solid #ffd700;
+    }
+    .input-container {
+        width: 100%;
+        max-width: 600px;
+        padding: 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background-color: #ffffff;
+        box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.1);
+    }
+    input {
+        width: 80%;
+        padding: 10px;
+        font-size: 16px;
+        border-radius: 5px;
+        border: 1px solid #ddd;
+    }
+    button {
+        padding: 10px 15px;
+        font-size: 16px;
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+    button:hover {
+        background-color: #45a049;
+    }
+</style>
+</head>
+<body>
+
+<div class="chat-container" id="chat-container">
+    <!-- 聊天记录 -->
+</div>
+
+<div class="input-container">
+    <input type="text" id="user-input" placeholder="请输入您的问题..." />
+    <button id="send-button">发送</button>
+</div>
+
+<script>
+let session_id = new URLSearchParams(window.location.search).get("session_id");
+let user_id = "anon-" + session_id;  // 用户 ID
+const chatContainer = document.getElementById('chat-container');
+
+function appendMessage(role, message) {
+    const messageDiv = document.createElement('div');
+    messageDiv.classList.add('message', role === 'user' ? 'user-message' : 'assistant-message');
+    messageDiv.textContent = message;
+    chatContainer.appendChild(messageDiv);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
+function displayMetaInfo(meta) {
+    const metaDiv = document.createElement('div');
+    metaDiv.classList.add('meta-info');
+    metaDiv.textContent = `餐厅: ${meta.restaurant_id} | 桌位: ${meta.table_id} | 对话轮次: ${meta.turns}`;
+    chatContainer.appendChild(metaDiv);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
+function displayOrders(orders) {
+    const ordersDiv = document.createElement('div');
+    ordersDiv.classList.add('orders-container');
+
+    if (!orders || (Array.isArray(orders) && orders.length === 0)) {
+        ordersDiv.textContent = "当前没有确认订单。";
+    } else {
+        // 直接显示 JSON 字符串，缩进 2 个空格
+        ordersDiv.textContent = JSON.stringify(orders, null, 2);
+        // 可选：用 <pre> 保留格式
+        // const pre = document.createElement('pre');
+        // pre.textContent = JSON.stringify(orders, null, 2);
+        // ordersDiv.appendChild(pre);
+    }
+
+    chatContainer.appendChild(ordersDiv);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
+async function sendMessage() {
+    const userMessage = document.getElementById('user-input').value.trim();
+    if (!userMessage) return;
+    appendMessage('user', userMessage);
+    document.getElementById('user-input').value = '';
+
+    try {
+        const response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                session_id: session_id,
+                message: userMessage,
+                user_id: user_id
+            })
+        });
+        const data = await response.json();
+
+        appendMessage('assistant', data.reply);
+        displayMetaInfo(data.meta);
+
+        // 如果订单有变化，显示订单
+        if (data.meta.orders && data.meta.orders.length > 0) {
+            displayOrders(data.meta.orders);
+        }
+
+    } catch (error) {
+        console.error('Error:', error);
+        appendMessage('assistant', '抱歉，发生错误，请稍后再试。');
+    }
+}
+
+// 绑定事件
+document.getElementById('send-button').addEventListener('click', sendMessage);
+document.getElementById('user-input').addEventListener('keypress', (event) => {
+    if (event.key === 'Enter') {
+        sendMessage();
+    }
+});
+</script>
+
+</body>
+</html>
