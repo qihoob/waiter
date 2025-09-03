@@ -11,6 +11,7 @@ OUTPUT_DIR = Path("./qrcodes")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 def make_url(restaurant_id: str, table_id: str) -> str:
+    token = make_token(restaurant_id, table_id, ttl_seconds=360000)  # 1小时
     return f"{DOMAIN}?token={token}"
 
 def make_qr(content: str, outfile: Path):
@@ -20,6 +21,7 @@ def make_qr(content: str, outfile: Path):
     img.save(outfile)
 
 if __name__ == "__main__":
+    rid = "r001"
     tid = "T08"
     url = make_url(rid, tid)
     print("签名链接：", url)
