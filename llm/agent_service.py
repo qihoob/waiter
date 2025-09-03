@@ -24,6 +24,7 @@ class AgentService:
             timeout=None,
             max_retries=2,
         )
+        self.tools = [menu_recommend_tool, process_order_tool_wrapper]
 
     def get_restaurant_profile(self, restaurant_id: str):
         return self.repo.get(restaurant_id, {"name": "未知餐厅", "location": "未知", "opening_hours": "未知"})
@@ -50,5 +51,8 @@ class AgentService:
             verbose=True,
             handle_parsing_errors=True  # 🔑 加这一行
         )
+        # 给 process_order_tool 传递 session_id
+        self.tools[1].func = lambda x: process_order_tool(x, session_id)
         reply = agent.run(final_prompt)
+        memory.save_context({"input": input_text}, {"output": reply})
         return reply
